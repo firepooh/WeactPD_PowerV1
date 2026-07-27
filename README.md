@@ -14,15 +14,22 @@
 | 디자인 원본 | [`GUI/design/PD Power Tool Redesign.dc.html`](GUI/design/PD%20Power%20Tool%20Redesign.dc.html), 구현 스펙: [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) |
 | 프로토콜 원본 | [`docs/protocol/`](docs/protocol/) (제조사 xlsx 2종 + Python 예제) |
 
-### 실장비 검증 (2026-07-27, COM9)
+### 실장비 검증 (2026-07-27, COM9 / USB CDC)
 
-USB CDC 모드로 아래 응답을 실제 수신 확인:
+CLI(`selftest`)와 WPF 앱 양쪽에서 아래를 실제로 확인:
 
 ```
-WHO_AM_I  (0x81) → "WeAct Studio PD Power Mini V1 BUCK"
-VERSION   (0xC2) → "V1.0.2.0_6a997d9a"
-SERIAL    (0xC3) → "acde8409ccd9"
+장치명    : WeAct Studio PD Power Mini V1 BUCK
+펌웨어    : V1.0.2.0_6a997d9a
+시리얼    : acde8409ccd9
+입력      : PD 20.111 V (PD 요청 20.0 V)
+활성설정  : M4 = 5.000 V / 1.000 A
+프리셋    : M0 1.0V/0.2A · M1 3.3V/0.5A · M2 5.0V/1.0A · M3 9.0V/2.0A · M4 5.0V/1.0A
 ```
+
+읽기 계열 명령(WHO_AM_I, VERSION, SERIAL_NUM, OUTPUT_STATE, OUTPUT_ID, OUTPUT_DATA,
+OUTPUT_DISPLAY, OCP_EN, OFFSET_EN, BRIGHTNESS, INPUT_STATE)은 전부 실장비 응답 확인 완료.
+쓰기 계열은 출력 단자에 전압이 인가되므로 미검증 — `PdPower.Cli` 로 직접 확인할 수 있다.
 
 ## 2. 통신 프로토콜 요약
 
@@ -39,7 +46,7 @@ SERIAL    (0xC3) → "acde8409ccd9"
 
 | 명령 | Head | 페이로드 | 비고 |
 |---|---|---|---|
-| OUTPUT_EN | `0x02` | `x` | 0=enable, 1=disable ※주의: 반전 논리(xlsx 기준). 예제 py는 1=enable로 사용 — 실장비로 확인 필요 |
+| OUTPUT_EN | `0x02` | `x` | ⚠ xlsx는 `0=enable`, 제조사 py 예제는 `1=enable` — 상충. Core 기본값은 `1=enable`, 확정은 `PdPower.Cli probe-outputen` 참조 |
 | OUTPUT_ID | `0x03` | `x` | 프리셋 그룹 M0–M4 (0–4) |
 | OUTPUT_DATA | `0x04` | `id, v_l8, v_h8, i_l8, i_h8` | 전압 mV, 전류 mA |
 | OUTPUT_OCP_EN | `0x06` | `x` | 과전류 보호 |
@@ -89,6 +96,8 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 
 ## 3. GUI 설계
 
+![PdPower.App 실행 화면 — COM9 실장비 연결](docs/images/app-monitor.png)
+
 목표 GUI는 제조사 예제 툴(PD Power Communication Tool v0.1.3)이 아니라 **자체 디자인안**을 따른다.
 전체 스펙은 [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) 참조. 핵심:
 
@@ -98,32 +107,83 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 - 스테퍼: 휠 ±1 / Ctrl+휠 ±0.1, 범위 1–20 V / 0–3 A, 변경 즉시 장치 반영
 - 샘플링 250 ms 폴링 (`READ_OUTPUT_DISPLAY` + `READ_OUTPUT_STATE`), 히스토리 64 포인트
 
-## 4. 폴더 구조
+## 4. 솔루션 구조
 
 ```
 WeactPD_PowerV1/
-├─ README.md                  ← 본 문서
-├─ docs/
-│  └─ protocol/               ← 제조사 프로토콜 원본 (UART/USB xlsx, Python 예제)
-├─ GUI/
-│  └─ design/                 ← 목표 GUI 디자인안 (HTML 목업, C# 구현 스펙, 스크린샷)
-└─ src/                       ← (예정) C# WPF 솔루션
-   ├─ PdPower.Core/           ←   프로토콜 라이브러리 (프레임 인코딩/디코딩, CRC8, SerialPort)
-   └─ PdPower.App/            ←   WPF GUI (MVVM)
+├─ WeactPD_PowerV1.sln
+├─ README.md                      ← 본 문서
+├─ docs/protocol/                 ← 제조사 프로토콜 원본 (UART/USB xlsx, Python 예제)
+├─ GUI/design/                    ← 목표 GUI 디자인안 (HTML 목업, C# 구현 스펙, 스크린샷)
+├─ src/
+│  ├─ PdPower.Core/               ← 프로토콜 라이브러리 (net8.0)
+│  │  ├─ Protocol/
+│  │  │  ├─ PdCommand.cs          ←   명령 코드 enum
+│  │  │  ├─ ProtocolMode.cs       ←   UsbCdc / Uart
+│  │  │  ├─ Crc8.cs               ←   CRC-8 (0x31, init 0xFF)
+│  │  │  └─ Frame.cs              ←   프레임 인코딩/디코딩, 응답 길이표
+│  │  ├─ Models/                  ←   DeviceInfo, OutputStatus, InputStatus 등
+│  │  ├─ PdPowerDevice.cs         ←   장치 API (SerialPort 요청/응답)
+│  │  └─ PdPowerException.cs
+│  ├─ PdPower.Cli/                ← 실장비 검증 콘솔 도구 (net8.0)
+│  └─ PdPower.App/                ← WPF GUI (net8.0-windows, MVVM)
+│     ├─ Themes/Theme.xaml        ←   디자인안 팔레트·스타일
+│     ├─ ViewModels/MainViewModel.cs
+│     └─ MainWindow.xaml
+└─ tests/PdPower.Core.Tests/      ← xUnit — CRC8/프레임 검증 26개
 ```
+
+### 빌드 · 실행
+
+```bash
+dotnet build WeactPD_PowerV1.sln
+```
+
+```bash
+dotnet test tests/PdPower.Core.Tests/PdPower.Core.Tests.csproj
+```
+
+CLI로 실장비 확인 (읽기 전용):
+
+```bash
+dotnet run --project src/PdPower.Cli -- --port COM9 selftest
+```
+
+WPF 앱 실행:
+
+```bash
+dotnet run --project src/PdPower.App
+```
+
+### 구현 시 주의점
+
+- `Frame.ResponseLength()` 로 응답 길이를 고정해 프레임을 잘라낸다. **종단 바이트(0x0A) 탐색만으로는
+  프레임을 나눌 수 없다** — 예를 들어 2570 mV(`0x0A0A`)처럼 페이로드에 0x0A가 들어갈 수 있다.
+  ASCII 응답(WHO_AM_I/VERSION/SERIAL)만 종단 탐색을 쓴다.
+- 요청 직전에 수신 버퍼를 비워(`DiscardInBuffer`) 프레임 동기를 잡는다.
+- `PdPowerDevice.FrameExchanged` 이벤트는 **스레드 풀에서 발생**한다. UI 컬렉션을 갱신하려면
+  구독자가 디스패처로 마샬링해야 한다 (안 하면 `NotSupportedException`).
+- `READ_INPUT_STATE`(0x8A)는 PD Power Mini V1 펌웨어 **v1.0.2.0 이상**에서만 지원 —
+  실패를 정상 흐름으로 처리한다.
 
 ## 5. 개발 로드맵
 
-- [ ] **PdPower.Core**: 프로토콜 라이브러리
-  - [ ] 프레임 빌더/파서 (USB CDC `0x0A` 종단 + UART CRC8 모드)
-  - [ ] 명령 API (enable, preset, data set/get, display, input state, save 등)
-  - [ ] 수신 스레드 + 타임아웃/재시도, 연결 해제 감지
-- [ ] **콘솔 테스트 툴**: COM9 실장비 대상 전 명령 검증
-- [ ] **PdPower.App (WPF, MVVM)**
-  - [ ] 레이아웃 (레일 + 메인, GridSplitter)
-  - [ ] 스테퍼 UserControl, 프리셋 카드, PORT 카드
-  - [ ] 250 ms 폴링 + Trend 차트 (LiveCharts2)
-  - [ ] Log 화면
+- [x] **PdPower.Core**: 프로토콜 라이브러리
+  - [x] 프레임 빌더/파서 (USB CDC `0x0A` 종단 + UART CRC8 모드)
+  - [x] 명령 API (enable, preset, data set/get, display, input state, 보호 설정, save 등)
+  - [x] 요청/응답 직렬화 + 타임아웃, 연결 해제 감지
+  - [x] 단위 테스트 — 문서의 CRC8 정답값 15개로 검증
+  - [ ] SYSTEM_FACTORY_DATA(0x47) 캘리브레이션 값 읽기/쓰기
+- [x] **PdPower.Cli**: 실장비 검증 도구 (읽기 명령 전체 확인 완료)
+- [x] **PdPower.App (WPF, MVVM)** — 동작하는 수직 슬라이스
+  - [x] 레일 + 메인 2단 레이아웃, GridSplitter, 디자인안 팔레트
+  - [x] 프리셋 카드 M0–M4 (1클릭 적용, 출력 중 잠금), PD INPUT 카드, PORT 카드
+  - [x] 250 ms 폴링 → 실측 V/A/W, CV/CC 배지, RUN/IDLE/OFFLINE 칩
+  - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
+  - [x] Log 탭 (원시 프레임 트레이스 토글)
+  - [ ] Trend 차트 — LiveCharts2 듀얼축(좌 전압 20 V / 우 전류 3 A), 피크 오토스케일
+  - [ ] 레일 56 px 아이콘 모드 접힘, 레일 내 Monitor/Log 내비
+  - [ ] 프리셋 더블클릭 인라인 편집
 - [ ] 설치본 패키징
 
 ## 6. 참고 링크
@@ -135,5 +195,13 @@ WeactPD_PowerV1/
 
 - `INPUT_PD_VOLTAGE` 변경은 **출력 OFF + 출력전압 5 V 미만**일 때만 적용됨
 - 3 A 연속 출력은 방열 보강 필요 (2 A까지는 상시 가능)
-- OUTPUT_EN 의 enable/disable 극성이 문서(xlsx)와 예제 코드(py) 간 상충 — 구현 시 실장비로 확정할 것
+- **OUTPUT_EN 극성 미확정** — 문서(xlsx)와 예제 코드(py)가 상충한다. 출력 단자에 전압이 인가되는
+  동작이라 자동 검증을 하지 않았다. 부하를 분리한 뒤 아래로 확정할 것:
+
+  ```bash
+  dotnet run --project src/PdPower.Cli -- --port COM9 probe-outputen
+  ```
+
+  판정 결과가 `0x00` 이면 `PdPowerDevice.OutputEnableOnValue` 기본값을 `0x00` 으로 바꾼다.
+- 프리셋·PD 전압 등 쓰기 값은 휘발성 — `SYSTEM_CONFIG_SAVE`(GUI의 Save) 없이는 전원 재인가 시 소실
 - UART 직결 시 3.3 V 레벨, 외부 UART 칩은 역전류 보호 필요
