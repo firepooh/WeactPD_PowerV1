@@ -1,0 +1,16 @@
+# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+publish/
+TestResults/
+
+# Build artifacts
+*.nupkg
+artifacts/
+
+# OS
+Thumbs.db
+Desktop.ini
