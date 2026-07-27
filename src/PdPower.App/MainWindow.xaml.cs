@@ -31,6 +31,9 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    /// <summary>드롭다운을 열 때마다 포트 목록을 다시 읽는다 — USB 장치가 중간에 꽂힐 수 있다.</summary>
+    private void OnPortDropDownOpened(object sender, EventArgs e) => _viewModel.RefreshPorts();
+
     protected override void OnClosed(EventArgs e)
     {
         _viewModel.Dispose();

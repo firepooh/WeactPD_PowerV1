@@ -96,16 +96,40 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 
 ## 3. GUI 설계
 
-![PdPower.App 실행 화면 — COM9 실장비 연결](docs/images/app-monitor.png)
+![PdPower.App Monitor 화면 — COM9 실장비 연결](docs/images/app-monitor.png)
 
 목표 GUI는 제조사 예제 툴(PD Power Communication Tool v0.1.3)이 아니라 **자체 디자인안**을 따른다.
-전체 스펙은 [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) 참조. 핵심:
+치수·색상의 최종 근거는 목업 HTML [`GUI/design/PD Power Tool Redesign.dc.html`](GUI/design/PD%20Power%20Tool%20Redesign.dc.html)
+이고, 요약 스펙은 [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) 다.
+**요약 스펙만 보고 구현하면 팔레트는 맞아도 구조가 틀어진다** — 반드시 목업을 렌더링해서 확인할 것. 핵심:
 
 - 창 1000×610, 좌측 레일(접이식 196↔56 px) + 우측 메인 2단 레이아웃
 - **좌측 레일**: Monitor/Log 내비, 프리셋 M0–M4 카드(1클릭 적용·더블클릭 편집·출력 중 잠금), PD INPUT 카드(5/9/12/15/20 V), PORT 카드(COM 선택·연결)
 - **메인**: 측정 스트립 3열(Voltage/Current/Power + Set 스테퍼·Output ON/OFF·CV/CC 배지), 듀얼축 Trend 차트, 푸터(SN·FW·입력 정보)
 - 스테퍼: 휠 ±1 / Ctrl+휠 ±0.1, 범위 1–20 V / 0–3 A, 변경 즉시 장치 반영
 - 샘플링 250 ms 폴링 (`READ_OUTPUT_DISPLAY` + `READ_OUTPUT_STATE`), 히스토리 64 포인트
+
+### 디자인 재현에서 놓치기 쉬운 것들
+
+목업의 "느낌"은 대부분 아래 구조에서 나온다. WPF 기본 컨트롤을 그대로 두면 Aero 시절 크롬이
+플랫 카드와 섞여 전체가 촌스러워지므로, `Themes/Theme.xaml` 에서 ComboBox·CheckBox·ListBox까지
+전부 템플릿을 교체했다.
+
+| 항목 | 올바른 구조 |
+|---|---|
+| 창 | 외곽 여백 0. 레일은 `#FAFAF9` 면 + 오른쪽 헤어라인, 헤더/푸터도 헤어라인으로 구분 |
+| 측정 셀 | 흰 상단(값) + `#FAFAF9` 하단(제어)을 `#F2F2F0` 헤어라인으로 나눈 2단 |
+| 값 표기 | 32 px 모노 숫자 + 13 px 회색 단위, **베이스라인 정렬** (캡션에 단위를 넣지 않는다) |
+| 스테퍼 | `[− │ 값 │ +]` 를 테두리 하나(radius 7)로 묶고 내부만 헤어라인 |
+| 출력 | 토글 버튼이 아니라 `ON│OFF` 세그먼트, 활성 칸만 액센트로 채움 |
+| 배지 | `CV`/`CC`/`OC` 2글자 (열거형 이름 그대로 쓰면 길어서 깨진다) |
+| Trend | 탭 컨트롤이 아니라 카드 안 섹션 — 제목 + 범례 + Clear/Hide 를 한 줄에 |
+| 밀도 | 본문 11–13 px. 기본 WPF 크기를 쓰면 계기판이 아니라 웹 폼처럼 보인다 |
+
+Trend 차트는 [`Controls/TrendChart.cs`](src/PdPower.App/Controls/TrendChart.cs) 에서 직접 그린다.
+샘플이 64개로 고정이라 차트 라이브러리보다 가볍고, 축 오토스케일(1/2/2.5/5 단위)을 스펙대로 맞추기 쉽다.
+
+![Log 화면 — 원시 프레임 트레이스](docs/images/app-log.png)
 
 ## 4. 솔루션 구조
 
@@ -127,8 +151,10 @@ WeactPD_PowerV1/
 │  │  └─ PdPowerException.cs
 │  ├─ PdPower.Cli/                ← 실장비 검증 콘솔 도구 (net8.0)
 │  └─ PdPower.App/                ← WPF GUI (net8.0-windows, MVVM)
-│     ├─ Themes/Theme.xaml        ←   디자인안 팔레트·스타일
+│     ├─ Themes/Theme.xaml        ←   팔레트 + 컨트롤 템플릿 전체 교체
+│     ├─ Controls/TrendChart.cs   ←   듀얼축 시계열 차트 (직접 렌더링)
 │     ├─ ViewModels/MainViewModel.cs
+│     ├─ Converters.cs
 │     └─ MainWindow.xaml
 └─ tests/PdPower.Core.Tests/      ← xUnit — CRC8/프레임 검증 26개
 ```
@@ -175,15 +201,19 @@ dotnet run --project src/PdPower.App
   - [x] 단위 테스트 — 문서의 CRC8 정답값 15개로 검증
   - [ ] SYSTEM_FACTORY_DATA(0x47) 캘리브레이션 값 읽기/쓰기
 - [x] **PdPower.Cli**: 실장비 검증 도구 (읽기 명령 전체 확인 완료)
-- [x] **PdPower.App (WPF, MVVM)** — 동작하는 수직 슬라이스
-  - [x] 레일 + 메인 2단 레이아웃, GridSplitter, 디자인안 팔레트
-  - [x] 프리셋 카드 M0–M4 (1클릭 적용, 출력 중 잠금), PD INPUT 카드, PORT 카드
-  - [x] 250 ms 폴링 → 실측 V/A/W, CV/CC 배지, RUN/IDLE/OFFLINE 칩
+- [x] **PdPower.App (WPF, MVVM)**
+  - [x] 목업 기준 레이아웃 — 여백 0, 톤 있는 레일, 2단 측정 셀, 통합 스테퍼 알약
+  - [x] 기본 컨트롤 템플릿 전체 교체 (ComboBox·CheckBox·ListBox·버튼)
+  - [x] 레일 내 Monitor/Log 내비, 프리셋 M0–M4 (1클릭 적용, 출력 중 잠금)
+  - [x] PD INPUT 스테퍼, PORT 카드 (드롭다운 열 때 포트 자동 갱신)
+  - [x] 250 ms 폴링 → 실측 V/A/W, CV/CC/OC 배지, RUN/IDLE/OFFLINE 칩
+  - [x] `ON│OFF` 세그먼트 출력 제어
   - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
-  - [x] Log 탭 (원시 프레임 트레이스 토글)
-  - [ ] Trend 차트 — LiveCharts2 듀얼축(좌 전압 20 V / 우 전류 3 A), 피크 오토스케일
-  - [ ] 레일 56 px 아이콘 모드 접힘, 레일 내 Monitor/Log 내비
+  - [x] 듀얼축 Trend 차트 + 오토스케일, Clear/Hide
+  - [x] Log 화면 (원시 프레임 트레이스 토글)
+  - [ ] 레일 56 px 아이콘 모드 접힘
   - [ ] 프리셋 더블클릭 인라인 편집
+  - [ ] Trend 시간 범위 선택 (1m / 5m / 1h)
 - [ ] 설치본 패키징
 
 ## 6. 참고 링크

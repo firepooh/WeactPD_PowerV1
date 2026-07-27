@@ -4,140 +4,261 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:PdPower.App.ViewModels"
+        xmlns:ctl="clr-namespace:PdPower.App.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="PD Power Tool" Height="610" Width="1000" MinHeight="520" MinWidth="820"
+        Title="PD Power Tool" Height="610" Width="1000" MinHeight="540" MinWidth="860"
         Background="{StaticResource SurfaceBrush}"
         Foreground="{StaticResource TextBrush}"
         FontSize="13" FontFamily="Segoe UI"
-        UseLayoutRounding="True">
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
 
-    <Grid Margin="12">
+    <!-- 디자인은 창 전체를 하나의 면으로 다룬다: 외곽 여백 없음, 레일과 메인은 헤어라인으로만 구분 -->
+    <Grid>
         <Grid.ColumnDefinitions>
-            <!-- 좌측 레일: 드래그로 110–320 px. 디자인안의 56 px 아이콘 모드 접힘은 아직 미구현. -->
-            <ColumnDefinition Width="216" MinWidth="180" MaxWidth="320" />
+            <ColumnDefinition Width="196" MinWidth="176" MaxWidth="320" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ══════════════ 좌측 레일 ══════════════ -->
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel>
+        <!-- ══════════════════ 좌측 레일 (#FAFAF9 면) ══════════════════ -->
+        <Border Grid.Column="0" Background="{StaticResource SurfaceAltBrush}"
+                BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,1,0">
+            <!-- PD/PORT 는 바닥 고정(Auto), 남는 높이는 프리셋 카드가 받는다.
+                 창이 작아도 PORT 카드가 밀려나지 않아야 한다 — 없으면 연결 자체가 불가능하다. -->
+            <Grid Margin="12,16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="96" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <!-- 로고 + 앱명 -->
-                <StackPanel Orientation="Horizontal" Margin="4,0,0,16">
-                    <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource AccentBrush}">
-                        <TextBlock Text="P" Foreground="White" FontWeight="Bold" FontSize="15"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Text="PD Power Tool" FontWeight="SemiBold" FontSize="14"
+                <!-- 로고 -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="6,0,0,14">
+                    <Border Width="18" Height="18" CornerRadius="5" Background="{StaticResource AccentBrush}" />
+                    <TextBlock Text="PD Power" FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="9,0,0,0" />
                 </StackPanel>
 
-                <!-- 프리셋 M0–M4 -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,8">
-                            <TextBlock Text="PRESETS" Style="{StaticResource SectionTitle}" Margin="0" />
-                            <TextBlock Text="LOCKED" Style="{StaticResource SectionTitle}" Margin="0"
-                                       HorizontalAlignment="Right" Foreground="{StaticResource CurrentBrush}"
+                <!-- 내비 -->
+                <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                    <Button Content="Monitor" Command="{Binding ShowMonitorCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavItem}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMonitorView}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Log" Margin="0,2,0,0" Command="{Binding ShowLogCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavItem}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLogView}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+
+                <!-- 프리셋 -->
+                <Border Grid.Row="2" Style="{StaticResource HairlineCard}" Background="Transparent" Padding="10,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock Text="Presets" Style="{StaticResource CardTitle}" />
+                            <TextBlock Text="LOCKED" Style="{StaticResource MicroMono}" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
                                        Visibility="{Binding OutputEnabled, Converter={StaticResource BoolToVisibility}}" />
                         </Grid>
 
-                        <!-- 출력 중에는 SelectPresetCommand 의 CanExecute 가 false 라
-                             버튼이 자동으로 비활성(opacity 0.45)된다. -->
+                        <!-- 출력 중에는 CanExecute 가 false 라 각 행이 자동으로 흐려진다 -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding Presets}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:PresetItem}">
-                                    <Button Margin="0,0,0,4" HorizontalContentAlignment="Stretch"
+                                    <Button Margin="0,0,0,1"
                                             Command="{Binding DataContext.SelectPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding Id}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource PresetRow}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" CornerRadius="4" Padding="6,1"
-                                                    Background="{StaticResource SurfaceAltBrush}">
+
+                                            <!-- 활성 프리셋만 칩에 액센트 테두리 -->
+                                            <Border Grid.Column="0" Width="26" Height="22" CornerRadius="5"
+                                                    BorderThickness="1" Background="Transparent"
+                                                    BorderBrush="Transparent">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <TextBlock Text="{Binding Label}" FontFamily="{StaticResource MonoFont}"
-                                                           FontSize="11" FontWeight="Bold" />
+                                                           FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource AccentDeepBrush}" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Border>
-                                            <TextBlock Grid.Column="1" Text="{Binding Summary}"
+
+                                            <!-- 레일을 스플리터로 좁히면 잘리므로, 하드 클립 대신 말줄임으로 -->
+                                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Margin="6,0,0,0"
                                                        FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                       Foreground="{StaticResource TextTertiaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
                                         </Grid>
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource FlatButton}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                                        <Setter Property="Background" Value="#F0F5FE" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
                                     </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
                 </Border>
 
                 <!-- PD 입력 -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <Border Grid.Row="3" Style="{StaticResource RailBox}" Margin="0,10,0,0">
                     <StackPanel>
-                        <TextBlock Text="PD INPUT" Style="{StaticResource SectionTitle}" />
+                        <Grid Margin="0,0,0,7">
+                            <TextBlock Text="PD INPUT" Style="{StaticResource RailSectionLabel}" />
+                            <TextBlock Style="{StaticResource FooterMono}" HorizontalAlignment="Right"
+                                       Text="{Binding InputVolts, StringFormat={}{0:F2} V}" />
+                        </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <ComboBox Grid.Column="0" ItemsSource="{Binding PdVoltageOptions}"
-                                      SelectedItem="{Binding SelectedPdVoltage}" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="Set" Style="{StaticResource FlatButton}"
-                                    Margin="6,0,0,0" Command="{Binding SetPdVoltageCommand}" />
+
+                            <!-- 스테퍼 알약: 테두리 하나 안에서 내부 헤어라인으로만 나눈다 -->
+                            <Border Grid.Column="0" Style="{StaticResource StepperPill}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="−" Width="20" Style="{StaticResource StepGlyph}"
+                                            FontSize="12" Command="{Binding NudgePdCommand}" CommandParameter="-1" />
+                                    <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                                    <TextBlock Grid.Column="2" Padding="0,5" HorizontalAlignment="Center"
+                                               FontFamily="{StaticResource MonoFont}" FontSize="12"
+                                               Text="{Binding SelectedPdVoltage, StringFormat={}{0} V}" />
+                                    <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                                    <Button Grid.Column="4" Content="+" Width="20" Style="{StaticResource StepGlyph}"
+                                            FontSize="12" Command="{Binding NudgePdCommand}" CommandParameter="1" />
+                                </Grid>
+                            </Border>
+
+                            <Button Grid.Column="1" Content="Set" Margin="6,0,0,0" Padding="10,5"
+                                    Style="{StaticResource AccentButton}" FontSize="11"
+                                    Command="{Binding SetPdVoltageCommand}" />
                         </Grid>
-                        <TextBlock Margin="0,8,0,0" FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}">
-                            <Run Text="{Binding InputState, Mode=OneWay}" />
-                            <Run Text="  " />
-                            <Run Text="{Binding InputVolts, StringFormat={}{0:F3} V, Mode=OneWay}" />
-                        </TextBlock>
                     </StackPanel>
                 </Border>
 
                 <!-- 포트 -->
-                <Border Style="{StaticResource Card}">
+                <Border Grid.Row="4" Style="{StaticResource RailBox}" Margin="0,8,0,0">
                     <StackPanel>
-                        <TextBlock Text="PORT" Style="{StaticResource SectionTitle}" />
-                        <ComboBox AutomationProperties.AutomationId="PortSelector"
-                                  ItemsSource="{Binding AvailablePorts}" SelectedItem="{Binding SelectedPort}"
-                                  IsEnabled="{Binding IsConnected, Converter={StaticResource InverseBool}}" />
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="Connect" Style="{StaticResource AccentButton}"
-                                    AutomationProperties.AutomationId="ConnectButton"
-                                    Margin="0,0,3,0" Command="{Binding ConnectCommand}" />
-                            <Button Grid.Column="1" Content="Disconnect" Style="{StaticResource FlatButton}"
-                                    AutomationProperties.AutomationId="DisconnectButton"
-                                    Margin="3,0,0,0" Command="{Binding DisconnectCommand}" />
+                        <Grid Margin="0,0,0,7">
+                            <TextBlock Text="PORT" Style="{StaticResource RailSectionLabel}" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Ellipse Width="7" Height="7" VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{StaticResource TextMutedBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="{Binding LinkLabel}" Style="{StaticResource MicroMono}"
+                                           Margin="5,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </Grid>
-                        <Button Content="Refresh ports" Style="{StaticResource FlatButton}" Margin="0,6,0,0"
-                                Command="{Binding RefreshPortsCommand}" />
+
+                        <!-- 목록은 드롭다운을 열 때 갱신한다 — 별도 Refresh 버튼이 필요 없다 -->
+                        <ComboBox AutomationProperties.AutomationId="PortSelector"
+                                  Style="{StaticResource FlatComboBox}"
+                                  ItemsSource="{Binding AvailablePorts}" SelectedItem="{Binding SelectedPort}"
+                                  DropDownOpened="OnPortDropDownOpened"
+                                  IsEnabled="{Binding IsConnected, Converter={StaticResource InverseBool}}" />
+
+                        <Button Margin="0,7,0,0" AutomationProperties.AutomationId="ConnectButton">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PortActionButton}">
+                                    <Setter Property="Content" Value="Connect" />
+                                    <Setter Property="Command" Value="{Binding ConnectCommand}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Content" Value="Disconnect" />
+                                            <Setter Property="Command" Value="{Binding DisconnectCommand}" />
+                                            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                                            <Setter Property="Foreground" Value="{StaticResource TextBodyBrush}" />
+                                            <Setter Property="FontWeight" Value="Normal" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </StackPanel>
                 </Border>
+            </Grid>
+        </Border>
 
-            </StackPanel>
-        </ScrollViewer>
-
-        <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center"
+        <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center"
                       Background="Transparent" ResizeBehavior="PreviousAndNext" />
 
-        <!-- ══════════════ 메인 ══════════════ -->
+        <!-- ══════════════════ 메인 ══════════════════ -->
         <Grid Grid.Column="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -146,33 +267,44 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 헤더 -->
-            <Grid Grid.Row="0" Margin="0,0,0,12">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Monitor" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding DeviceName}" Margin="10,0,0,0" VerticalAlignment="Center"
-                               FontSize="12" Foreground="{StaticResource TextMutedBrush}" />
-                </StackPanel>
-                <Border CornerRadius="11" Padding="10,3" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Background" Value="{StaticResource TextMutedBrush}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ConnectionState}" Value="RUN">
-                                    <Setter Property="Background" Value="{StaticResource OkBrush}" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding ConnectionState}" Value="IDLE">
-                                    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-                    <TextBlock Text="{Binding ConnectionState}" Foreground="White" FontSize="11" FontWeight="Bold" />
-                </Border>
-            </Grid>
+            <!-- 헤더: 아래쪽 헤어라인으로 구분 -->
+            <Border Grid.Row="0" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1"
+                    Padding="22,14">
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Monitor" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DeviceName}" FontSize="13" Margin="10,0,0,0"
+                                   VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}" />
+                    </StackPanel>
 
-            <!-- 측정 + 제어 스트립 -->
-            <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <!-- 상태 칩: 색 면이 아니라 점 + 테두리 (디자인 기준) -->
+                    <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="6"
+                            Padding="11,5" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource TextMutedBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ConnectionState}" Value="RUN">
+                                                <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ConnectionState}" Value="IDLE">
+                                                <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding ConnectionState}" FontSize="12" FontWeight="SemiBold"
+                                       Margin="7,0,0,0" Foreground="#3D3D38" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- 측정 + 제어 스트립: 한 박스, 세로 헤어라인 3분할, 각 칸은 위(측정)/아래(제어) 2단 -->
+            <Border Grid.Row="1" Style="{StaticResource HairlineCard}" Margin="22,18,22,0" ClipToBounds="True">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -181,147 +313,298 @@
                         <ColumnDefinition Width="1" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
 
-                    <!-- 전압 -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="4,0,12,10">
-                        <TextBlock Text="Voltage (V)" Style="{StaticResource Caption}" Foreground="{StaticResource AccentBrush}" />
-                        <TextBlock Text="{Binding MeasuredVolts, StringFormat={}{0:F3}}" Style="{StaticResource Measurement}" />
-                    </StackPanel>
-                    <Grid Grid.Row="1" Grid.Column="0" Margin="4,0,12,0"
-                          Tag="voltage" MouseWheel="OnStepperMouseWheel" Background="Transparent">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="−" Style="{StaticResource StepButton}"
-                                Command="{Binding NudgeVoltsCommand}" CommandParameter="-1" />
-                        <Border Grid.Column="1" Style="{StaticResource SubCard}" Margin="6,0" Padding="4">
-                            <TextBlock Text="{Binding SetVolts, StringFormat={}{0:F3} V}" Style="{StaticResource Setpoint}" />
-                        </Border>
-                        <Button Grid.Column="2" Content="+" Style="{StaticResource StepButton}"
-                                Command="{Binding NudgeVoltsCommand}" CommandParameter="1" />
-                    </Grid>
-
-                    <Rectangle Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Fill="{StaticResource DividerBrush}" />
-
-                    <!-- 전류 -->
-                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="12,0,12,10">
-                        <TextBlock Text="Current (A)" Style="{StaticResource Caption}" Foreground="{StaticResource CurrentBrush}" />
-                        <TextBlock Text="{Binding MeasuredAmps, StringFormat={}{0:F3}}" Style="{StaticResource Measurement}" />
-                    </StackPanel>
-                    <Grid Grid.Row="1" Grid.Column="2" Margin="12,0"
-                          Tag="current" MouseWheel="OnStepperMouseWheel" Background="Transparent">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="−" Style="{StaticResource StepButton}"
-                                Command="{Binding NudgeAmpsCommand}" CommandParameter="-0.1" />
-                        <Border Grid.Column="1" Style="{StaticResource SubCard}" Margin="6,0" Padding="4">
-                            <TextBlock Text="{Binding SetAmps, StringFormat={}{0:F3} A}" Style="{StaticResource Setpoint}" />
-                        </Border>
-                        <Button Grid.Column="2" Content="+" Style="{StaticResource StepButton}"
-                                Command="{Binding NudgeAmpsCommand}" CommandParameter="0.1" />
-                    </Grid>
-
-                    <Rectangle Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Fill="{StaticResource DividerBrush}" />
-
-                    <!-- 전력 + 출력 제어 -->
-                    <StackPanel Grid.Row="0" Grid.Column="4" Margin="12,0,4,10">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Power (W)" Style="{StaticResource Caption}" />
-                            <Border CornerRadius="4" Padding="5,1" Margin="8,0,0,0"
-                                    Background="{StaticResource SurfaceAltBrush}"
-                                    BorderBrush="{StaticResource BorderStrongBrush}" BorderThickness="1">
-                                <TextBlock Text="{Binding Regulation}" FontSize="9" FontWeight="Bold"
-                                           Foreground="{StaticResource TextSecondaryBrush}" />
-                            </Border>
+                    <!-- ── 전압 ── -->
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="14,12">
+                            <TextBlock Text="Voltage" Style="{StaticResource CellCaption}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding MeasuredVolts, StringFormat={}{0:F3}}"
+                                           Style="{StaticResource MeasureValue}" />
+                                <TextBlock Text="V" Style="{StaticResource MeasureUnit}" VerticalAlignment="Bottom"
+                                           Margin="4,0,0,4" />
+                            </StackPanel>
                         </StackPanel>
-                        <TextBlock Text="{Binding MeasuredWatts, StringFormat={}{0:F3}}" Style="{StaticResource Measurement}" />
-                    </StackPanel>
-                    <Grid Grid.Row="1" Grid.Column="4" Margin="12,0,4,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Command="{Binding ToggleOutputCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource FlatButton}">
-                                    <Setter Property="Content" Value="Output ON" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
-                                            <Setter Property="Content" Value="Output OFF" />
-                                            <Setter Property="Background" Value="{StaticResource CurrentBrush}" />
-                                            <Setter Property="BorderBrush" Value="{StaticResource CurrentBrush}" />
-                                            <Setter Property="Foreground" Value="White" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                        <Button Grid.Column="1" Content="Save" Style="{StaticResource FlatButton}"
-                                Margin="6,0,0,0" Command="{Binding SaveConfigCommand}" />
+                        <Border Grid.Row="1" Background="{StaticResource SurfaceAltBrush}" Padding="14,10"
+                                BorderBrush="{StaticResource HairlineSoftBrush}" BorderThickness="0,1,0,0"
+                                Tag="voltage" MouseWheel="OnStepperMouseWheel">
+                            <StackPanel>
+                                <TextBlock Text="Set voltage" Style="{StaticResource ControlCaption}" Margin="0,0,0,7" />
+                                <Border Style="{StaticResource StepperPill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="−" Style="{StaticResource StepGlyph}"
+                                                Command="{Binding NudgeVoltsCommand}" CommandParameter="-1" />
+                                        <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,6"
+                                                    HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding SetVolts, StringFormat={}{0:F3}}"
+                                                       FontFamily="{StaticResource MonoFont}" FontSize="13" />
+                                            <TextBlock Text="V" FontSize="11" Margin="3,0,0,0"
+                                                       Foreground="{StaticResource TextTertiaryBrush}"
+                                                       VerticalAlignment="Bottom" />
+                                        </StackPanel>
+                                        <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                                        <Button Grid.Column="4" Content="+" Style="{StaticResource StepGlyph}"
+                                                Command="{Binding NudgeVoltsCommand}" CommandParameter="1" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Rectangle Grid.Column="1" Fill="{StaticResource HairlineBrush}" />
+
+                    <!-- ── 전류 ── -->
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="14,12">
+                            <TextBlock Text="Current" Style="{StaticResource CellCaption}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding MeasuredAmps, StringFormat={}{0:F3}}"
+                                           Style="{StaticResource MeasureValue}" />
+                                <TextBlock Text="A" Style="{StaticResource MeasureUnit}" VerticalAlignment="Bottom"
+                                           Margin="4,0,0,4" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Border Grid.Row="1" Background="{StaticResource SurfaceAltBrush}" Padding="14,10"
+                                BorderBrush="{StaticResource HairlineSoftBrush}" BorderThickness="0,1,0,0"
+                                Tag="current" MouseWheel="OnStepperMouseWheel">
+                            <StackPanel>
+                                <TextBlock Text="Current limit" Style="{StaticResource ControlCaption}" Margin="0,0,0,7" />
+                                <Border Style="{StaticResource StepperPill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="−" Style="{StaticResource StepGlyph}"
+                                                Command="{Binding NudgeAmpsCommand}" CommandParameter="-0.1" />
+                                        <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,6"
+                                                    HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding SetAmps, StringFormat={}{0:F3}}"
+                                                       FontFamily="{StaticResource MonoFont}" FontSize="13" />
+                                            <TextBlock Text="A" FontSize="11" Margin="3,0,0,0"
+                                                       Foreground="{StaticResource TextTertiaryBrush}"
+                                                       VerticalAlignment="Bottom" />
+                                        </StackPanel>
+                                        <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                                        <Button Grid.Column="4" Content="+" Style="{StaticResource StepGlyph}"
+                                                Command="{Binding NudgeAmpsCommand}" CommandParameter="0.1" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Rectangle Grid.Column="3" Fill="{StaticResource HairlineBrush}" />
+
+                    <!-- ── 전력 + 출력 ── -->
+                    <Grid Grid.Column="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="14,12">
+                            <TextBlock Text="Power" Style="{StaticResource CellCaption}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding MeasuredWatts, StringFormat={}{0:F2}}"
+                                           Style="{StaticResource MeasureValue}" />
+                                <TextBlock Text="W" Style="{StaticResource MeasureUnit}" VerticalAlignment="Bottom"
+                                           Margin="4,0,0,4" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Border Grid.Row="1" Background="{StaticResource SurfaceAltBrush}" Padding="14,10"
+                                BorderBrush="{StaticResource HairlineSoftBrush}" BorderThickness="0,1,0,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,7">
+                                    <TextBlock Text="Output" Style="{StaticResource ControlCaption}" />
+                                    <TextBlock Text="{Binding RegulationLabel}" HorizontalAlignment="Right">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource MicroMono}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RegulationLabel}" Value="CC">
+                                                        <Setter Property="Foreground" Value="{StaticResource CurrentBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding RegulationLabel}" Value="OC">
+                                                        <Setter Property="Foreground" Value="{StaticResource CurrentBrush}" />
+                                                        <Setter Property="FontWeight" Value="Bold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+
+                                <!-- ON│OFF 세그먼트: 활성 칸만 채운다 -->
+                                <Border Style="{StaticResource StepperPill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0" CornerRadius="6,0,0,6">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Button Content="ON" Command="{Binding OutputOnCommand}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
+                                                                <Setter Property="Foreground" Value="White" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </Border>
+
+                                        <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+
+                                        <Border Grid.Column="2" CornerRadius="0,6,6,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Button Content="OFF" Command="{Binding OutputOffCommand}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding OutputEnabled}" Value="False">
+                                                                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Grid>
             </Border>
 
-            <!-- Trend / Log -->
-            <TabControl Grid.Row="2" BorderThickness="0" Background="Transparent" Padding="0">
-                <TabItem Header="Trend">
-                    <Border Style="{StaticResource Card}" Margin="0,8,0,0">
-                        <Grid>
-                            <!-- TODO: LiveCharts2 로 듀얼축(좌 전압 20 V / 우 전류 3 A) 차트 교체 -->
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Trend chart" Style="{StaticResource SectionTitle}"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="12"
-                                           Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center">
-                                    <Run Text="{Binding History.Count, Mode=OneWay}" />
-                                    <Run Text="/ 64 samples buffered" />
-                                </TextBlock>
-                            </StackPanel>
-                            <Button Content="Clear" Style="{StaticResource FlatButton}"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top"
-                                    Command="{Binding ClearHistoryCommand}" />
-                        </Grid>
-                    </Border>
-                </TabItem>
-                <TabItem Header="Log">
-                    <Border Style="{StaticResource Card}" Margin="0,8,0,0" Padding="8">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <CheckBox Grid.Row="0" Margin="2,0,0,6" FontSize="11"
-                                      Content="Trace raw frames (250 ms 폴링당 6~8 프레임)"
-                                      Foreground="{StaticResource TextSecondaryBrush}"
-                                      IsChecked="{Binding IsFrameTraceEnabled}" />
-                            <ListBox Grid.Row="1" ItemsSource="{Binding Log}" BorderThickness="0" Background="Transparent"
-                                     FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Auto" />
-                        </Grid>
-                    </Border>
-                </TabItem>
-            </TabControl>
+            <!-- Trend (Monitor) / Log — 레일 내비로 전환 -->
+            <Grid Grid.Row="2" Margin="22,14,22,18">
 
-            <!-- 푸터 -->
-            <Grid Grid.Row="3" Margin="2,10,2,0">
-                <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="11"
-                           FontFamily="{StaticResource MonoFont}">
-                    <Run Text="SN" /><Run Text=" " /><Run Text="{Binding SerialNumber, Mode=OneWay}" />
-                    <Run Text="  ·  FW " /><Run Text="{Binding FirmwareVersion, Mode=OneWay}" />
-                </TextBlock>
-                <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Right" FontSize="11"
-                           Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"
-                           MaxWidth="520" />
+                <!-- Trend -->
+                <Border Style="{StaticResource HairlineCard}" Padding="16,14"
+                        Visibility="{Binding IsMonitorView, Converter={StaticResource BoolToVisibility}}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- 섹션 헤더: 제목 + 범례 + Clear/Hide -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Trend" Style="{StaticResource CardTitle}" VerticalAlignment="Center" />
+                                <Rectangle Width="12" Height="2" Margin="14,0,5,0" VerticalAlignment="Center"
+                                           Fill="{StaticResource AccentBrush}" />
+                                <TextBlock Text="Voltage (V)" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                           Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" />
+                                <Rectangle Width="12" Height="2" Margin="12,0,5,0" VerticalAlignment="Center"
+                                           Fill="{StaticResource CurrentBrush}" />
+                                <TextBlock Text="Current (A)" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                           Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Style="{StaticResource MicroMono}" VerticalAlignment="Center"
+                                           Margin="0,0,10,0">
+                                    <Run Text="{Binding History.Count, Mode=OneWay}" /><Run Text="/64" />
+                                </TextBlock>
+                                <Button Content="Clear" Style="{StaticResource GhostButton}" Padding="8,4"
+                                        Command="{Binding ClearHistoryCommand}" />
+                                <Button Content="Hide" Style="{StaticResource GhostButton}" Padding="8,4"
+                                        Margin="6,0,0,0" Command="{Binding ToggleTrendCommand}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <ctl:TrendChart Grid.Row="1" Samples="{Binding History}"
+                                        Visibility="{Binding IsTrendVisible, Converter={StaticResource BoolToVisibility}}"
+                                        VoltageBrush="{StaticResource AccentBrush}"
+                                        CurrentBrush="{StaticResource CurrentBrush}"
+                                        GridBrush="{StaticResource HairlineBrush}"
+                                        AxisLabelBrush="{StaticResource TextMutedBrush}" />
+
+                        <Button Grid.Row="1" Content="Show trend graph" Style="{StaticResource GhostButton}"
+                                Padding="16,8" FontSize="12"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Command="{Binding ToggleTrendCommand}"
+                                Visibility="{Binding IsTrendHidden, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                </Border>
+
+                <!-- Log -->
+                <Border Style="{StaticResource HairlineCard}" Padding="16,14"
+                        Visibility="{Binding IsLogView, Converter={StaticResource BoolToVisibility}}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <TextBlock Text="Log" Style="{StaticResource CardTitle}" VerticalAlignment="Center" />
+                            <CheckBox Style="{StaticResource FlatCheckBox}" HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Content="Trace raw frames"
+                                      IsChecked="{Binding IsFrameTraceEnabled}" />
+                        </Grid>
+                        <ListBox Grid.Row="1" Style="{StaticResource LogList}" ItemsSource="{Binding Log}" />
+                    </Grid>
+                </Border>
             </Grid>
+
+            <!-- 푸터: 위쪽 헤어라인 + #FAFAF9 면 -->
+            <Border Grid.Row="3" Background="{StaticResource SurfaceAltBrush}"
+                    BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,1,0,0" Padding="22,10">
+                <Grid>
+                    <TextBlock Style="{StaticResource FooterMono}">
+                        <Run Text="SN " /><Run Text="{Binding SerialNumber, Mode=OneWay}" />
+                        <Run Text="  ·  FW " /><Run Text="{Binding FirmwareVersion, Mode=OneWay}" />
+                        <Run Text="  ·  " /><Run Text="{Binding InputState, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource FooterMono}"
+                               HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="480" />
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Window>

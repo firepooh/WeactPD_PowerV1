@@ -31,12 +31,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DisconnectCommand = new RelayCommand(_ => Disconnect(), _ => IsConnected);
         RefreshPortsCommand = new RelayCommand(_ => RefreshPorts());
         SelectPresetCommand = new AsyncRelayCommand(p => SelectPresetAsync(ToInt(p)), _ => IsConnected && !OutputEnabled, ReportError);
-        ToggleOutputCommand = new AsyncRelayCommand(_ => SetOutputAsync(!OutputEnabled), _ => IsConnected, ReportError);
+        OutputOnCommand = new AsyncRelayCommand(_ => SetOutputAsync(true), _ => IsConnected && !OutputEnabled, ReportError);
+        OutputOffCommand = new AsyncRelayCommand(_ => SetOutputAsync(false), _ => IsConnected && OutputEnabled, ReportError);
         NudgeVoltsCommand = new AsyncRelayCommand(p => ApplySetpointAsync(SetVolts + ToDouble(p), SetAmps), _ => IsConnected, ReportError);
         NudgeAmpsCommand = new AsyncRelayCommand(p => ApplySetpointAsync(SetVolts, SetAmps + ToDouble(p)), _ => IsConnected, ReportError);
+        NudgePdCommand = new RelayCommand(p => StepPdVoltage(ToInt(p)), _ => IsConnected && !OutputEnabled);
         SetPdVoltageCommand = new AsyncRelayCommand(_ => SetPdVoltageAsync(), _ => IsConnected && !OutputEnabled, ReportError);
         SaveConfigCommand = new AsyncRelayCommand(_ => SaveConfigAsync(), _ => IsConnected, ReportError);
         ClearHistoryCommand = new RelayCommand(_ => History.Clear());
+        ToggleTrendCommand = new RelayCommand(_ => IsTrendVisible = !IsTrendVisible);
+        ShowMonitorCommand = new RelayCommand(_ => IsMonitorView = true);
+        ShowLogCommand = new RelayCommand(_ => IsMonitorView = false);
 
         _pollTimer = new DispatcherTimer { Interval = PollInterval };
         _pollTimer.Tick += async (_, _) => await PollAsync().ConfigureAwait(true);
@@ -63,12 +68,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!SetField(ref _isConnected, value)) return;
             OnPropertyChanged(nameof(ConnectionState));
+            OnPropertyChanged(nameof(LinkLabel));
             RaiseCommandStates();
         }
     }
 
     /// <summary>헤더 상태 칩 표시용 — RUN / IDLE / OFFLINE.</summary>
     public string ConnectionState => !IsConnected ? "OFFLINE" : OutputEnabled ? "RUN" : "IDLE";
+
+    /// <summary>PORT 카드용 링크 상태. 헤더 칩과 중복되지 않게 출력 상태는 섞지 않는다.</summary>
+    public string LinkLabel => IsConnected ? "LINKED" : "OFFLINE";
 
     // ── 장치 정보 ────────────────────────────────────────────────────────
 
@@ -100,7 +109,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public double MeasuredWatts => MeasuredVolts * MeasuredAmps;
 
     private OutputRegulation _regulation;
-    public OutputRegulation Regulation { get => _regulation; private set => SetField(ref _regulation, value); }
+    public OutputRegulation Regulation
+    {
+        get => _regulation;
+        private set { if (SetField(ref _regulation, value)) OnPropertyChanged(nameof(RegulationLabel)); }
+    }
+
+    /// <summary>디자인의 초소형 배지용 약어 — 열거형 이름을 그대로 쓰면 너무 길다.</summary>
+    public string RegulationLabel => Regulation switch
+    {
+        OutputRegulation.ConstantCurrent => "CC",
+        OutputRegulation.OverCurrent => "OC",
+        _ => "CV",
+    };
 
     private bool _outputEnabled;
     public bool OutputEnabled
@@ -139,11 +160,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private double _inputVolts;
     public double InputVolts { get => _inputVolts; private set => SetField(ref _inputVolts, value); }
 
-    /// <summary>PD INPUT 카드에서 선택할 수 있는 표준 PD 전압 단계.</summary>
+    /// <summary>PD INPUT 카드의 요청 전압 단계. 프로토콜 하한이 8 V라 9 V부터 시작한다.</summary>
     public int[] PdVoltageOptions { get; } = [9, 12, 15, 20];
 
     private int _selectedPdVoltage = 20;
     public int SelectedPdVoltage { get => _selectedPdVoltage; set => SetField(ref _selectedPdVoltage, value); }
+
+    /// <summary>PD 전압 스테퍼 — 임의 값이 아니라 표준 단계 사이를 이동한다.</summary>
+    private void StepPdVoltage(int direction)
+    {
+        int index = Array.IndexOf(PdVoltageOptions, SelectedPdVoltage);
+        if (index < 0) index = PdVoltageOptions.Length - 1;
+        SelectedPdVoltage = PdVoltageOptions[Math.Clamp(index + direction, 0, PdVoltageOptions.Length - 1)];
+    }
 
     // ── 상태 메시지 / 로그 ───────────────────────────────────────────────
 
@@ -151,6 +180,27 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string StatusMessage { get => _statusMessage; private set => SetField(ref _statusMessage, value); }
 
     public ObservableCollection<string> Log { get; } = [];
+
+    // ── 화면 전환 (레일 내비) ────────────────────────────────────────────
+
+    private bool _isMonitorView = true;
+    public bool IsMonitorView
+    {
+        get => _isMonitorView;
+        private set { if (SetField(ref _isMonitorView, value)) OnPropertyChanged(nameof(IsLogView)); }
+    }
+
+    public bool IsLogView => !IsMonitorView;
+
+    /// <summary>Trend 카드 접기 — 디자인의 Hide / Show trend graph 동작.</summary>
+    private bool _isTrendVisible = true;
+    public bool IsTrendVisible
+    {
+        get => _isTrendVisible;
+        private set { if (SetField(ref _isTrendVisible, value)) OnPropertyChanged(nameof(IsTrendHidden)); }
+    }
+
+    public bool IsTrendHidden => !IsTrendVisible;
 
     /// <summary>
     /// 켜면 모든 원시 프레임을 Log에 남긴다. 250 ms 폴링당 6~8 프레임이 오가므로 기본은 끔.
@@ -164,12 +214,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand DisconnectCommand { get; }
     public RelayCommand RefreshPortsCommand { get; }
     public AsyncRelayCommand SelectPresetCommand { get; }
-    public AsyncRelayCommand ToggleOutputCommand { get; }
+    public AsyncRelayCommand OutputOnCommand { get; }
+    public AsyncRelayCommand OutputOffCommand { get; }
     public AsyncRelayCommand NudgeVoltsCommand { get; }
     public AsyncRelayCommand NudgeAmpsCommand { get; }
+    public RelayCommand NudgePdCommand { get; }
     public AsyncRelayCommand SetPdVoltageCommand { get; }
     public AsyncRelayCommand SaveConfigCommand { get; }
     public RelayCommand ClearHistoryCommand { get; }
+    public RelayCommand ToggleTrendCommand { get; }
+    public RelayCommand ShowMonitorCommand { get; }
+    public RelayCommand ShowLogCommand { get; }
 
     // ── 동작 ─────────────────────────────────────────────────────────────
 
@@ -364,9 +419,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ConnectCommand.RaiseCanExecuteChanged();
         DisconnectCommand.RaiseCanExecuteChanged();
         SelectPresetCommand.RaiseCanExecuteChanged();
-        ToggleOutputCommand.RaiseCanExecuteChanged();
+        OutputOnCommand.RaiseCanExecuteChanged();
+        OutputOffCommand.RaiseCanExecuteChanged();
         NudgeVoltsCommand.RaiseCanExecuteChanged();
         NudgeAmpsCommand.RaiseCanExecuteChanged();
+        NudgePdCommand.RaiseCanExecuteChanged();
         SetPdVoltageCommand.RaiseCanExecuteChanged();
         SaveConfigCommand.RaiseCanExecuteChanged();
     }
@@ -404,7 +461,8 @@ public sealed class PresetItem(int id) : ObservableObject
     private bool _isActive;
     public bool IsActive { get => _isActive; set => SetField(ref _isActive, value); }
 
-    public string Summary => $"{Volts:F2} V  ·  {Amps:F2} A";
+    /// <summary>레일 폭(196 px)에 잘리지 않도록 불필요한 0을 뺀다 — "3.3 V · 0.5 A".</summary>
+    public string Summary => $"{Volts:0.##} V · {Amps:0.##} A";
 
     public void Update(double volts, double amps, bool isActive)
     {
