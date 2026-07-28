@@ -1,0 +1,106 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: write   # 태그 푸시 시 Release 생성용
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # 태그(v1.2.3)면 태그에서 버전을 뽑고, 일반 푸시면 run_number 를 붙여 매 푸시마다 올린다
+      - name: Determine version
+        id: ver
+        shell: pwsh
+        run: |
+          $base = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.VersionPrefix |
+                  Where-Object { $_ } | Select-Object -First 1
+          if ('${{ github.ref }}'.StartsWith('refs/tags/v')) {
+            $v = '${{ github.ref_name }}'.TrimStart('v')
+          } else {
+            $v = "$base-dev.${{ github.run_number }}"
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Base $base -> Version $v"
+
+      - name: Test
+        run: dotnet test tests/PdPower.Core.Tests/PdPower.Core.Tests.csproj -c Release --nologo
+
+      # ① 프레임워크 의존 단일 exe (~1MB, 실행 PC에 .NET 8 Desktop Runtime 필요)
+      - name: Publish GUI (framework-dependent)
+        run: >
+          dotnet publish src/PdPower.App/PdPower.App.csproj -c Release -r win-x64
+          --self-contained false
+          -p:PublishSingleFile=true
+          -p:Version=${{ steps.ver.outputs.version }}
+          -o publish/gui-fdd
+
+      # ② self-contained 단일 exe (~70MB, 런타임 포함, 아무 PC에서나 실행)
+      - name: Publish GUI (self-contained)
+        run: >
+          dotnet publish src/PdPower.App/PdPower.App.csproj -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.ver.outputs.version }}
+          -o publish/gui-sc
+
+      - name: Publish CLI (framework-dependent)
+        run: >
+          dotnet publish src/PdPower.Cli/PdPower.Cli.csproj -c Release -r win-x64
+          --self-contained false
+          -p:PublishSingleFile=true
+          -p:Version=${{ steps.ver.outputs.version }}
+          -o publish/cli-fdd
+
+      - name: Publish CLI (self-contained)
+        run: >
+          dotnet publish src/PdPower.Cli/PdPower.Cli.csproj -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:Version=${{ steps.ver.outputs.version }}
+          -o publish/cli-sc
+
+      - name: Collect
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item publish/gui-fdd/PdPower.App.exe dist/PdPowerTool.exe
+          Copy-Item publish/gui-sc/PdPower.App.exe  dist/PdPowerTool-standalone.exe
+          Copy-Item publish/cli-fdd/PdPower.Cli.exe dist/PdPowerCli.exe
+          Copy-Item publish/cli-sc/PdPower.Cli.exe  dist/PdPowerCli-standalone.exe
+          Get-ChildItem dist | Format-Table Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PdPowerTool-win-x64-${{ steps.ver.outputs.version }}
+          path: dist/*
+
+      - name: Create Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create '${{ github.ref_name }}'
+          'dist/PdPowerTool.exe#PdPowerTool.exe (GUI, .NET 8 Desktop Runtime 필요)'
+          'dist/PdPowerTool-standalone.exe#PdPowerTool-standalone.exe (GUI, 런타임 포함)'
+          'dist/PdPowerCli.exe#PdPowerCli.exe (CLI, .NET 8 Runtime 필요)'
+          'dist/PdPowerCli-standalone.exe#PdPowerCli-standalone.exe (CLI, 런타임 포함)'
+          --title 'PD Power Tool ${{ github.ref_name }}'
+          --generate-notes

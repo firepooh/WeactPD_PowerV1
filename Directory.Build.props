@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    모든 프로젝트가 공유하는 버전. 패치 자리는 커밋 훅(.githooks/pre-commit)이 올리므로
+    직접 고칠 일은 major/minor 를 올릴 때뿐이다.
+
+    CI 는 이 값을 덮어쓴다:
+      - 태그 v1.2.3 푸시  → Version=1.2.3
+      - 일반 푸시         → Version=<VersionPrefix>-dev.<run_number>
+    자세한 건 .github/workflows/build.yml 참조.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.1</VersionPrefix>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>PD Power Tool</Product>
+    <Company>alti-mobility</Company>
+    <Copyright>Copyright © 2026</Copyright>
+  </PropertyGroup>
+
+</Project>

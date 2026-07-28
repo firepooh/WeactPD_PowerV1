@@ -38,9 +38,14 @@
 
                 <!-- 로고 -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="6,0,0,10">
-                    <Border Width="18" Height="18" CornerRadius="5" Background="{StaticResource AccentBrush}" />
-                    <TextBlock Text="PD Power" FontSize="13" FontWeight="SemiBold"
-                               VerticalAlignment="Center" Margin="9,0,0,0" />
+                    <Border Width="18" Height="18" CornerRadius="5" Background="{StaticResource AccentBrush}"
+                            VerticalAlignment="Top" Margin="0,2,0,0" />
+                    <StackPanel Margin="9,0,0,0">
+                        <TextBlock Text="PD Power" FontSize="13" FontWeight="SemiBold" />
+                        <!-- 버전은 Directory.Build.props 에서 오고 CI 가 덮어쓴다 -->
+                        <TextBlock Text="{Binding AppVersion, StringFormat={}v{0}}"
+                                   Style="{StaticResource MicroMono}" Margin="0,1,0,0" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- 내비 -->

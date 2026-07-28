@@ -193,6 +193,9 @@ CSV 열: `timestamp,volts,amps,watts,regulation,output_enabled` (타임스탬프
 ```
 WeactPD_PowerV1/
 ├─ WeactPD_PowerV1.sln
+├─ Directory.Build.props          ← 공유 버전 (VersionPrefix)
+├─ .githooks/pre-commit           ← 커밋마다 패치 버전 증가
+├─ .github/workflows/build.yml    ← 빌드·테스트, 태그 시 Release 배포
 ├─ README.md                      ← 본 문서
 ├─ docs/protocol/                 ← 제조사 프로토콜 원본 (UART/USB xlsx, Python 예제)
 ├─ GUI/design/                    ← 목표 GUI 디자인안 (HTML 목업, C# 구현 스펙, 스크린샷)
@@ -216,6 +219,50 @@ WeactPD_PowerV1/
 │     └─ MainWindow.xaml
 └─ tests/PdPower.Core.Tests/      ← xUnit — CRC8/프레임 검증 26개
 ```
+
+### 버전 · 릴리스
+
+버전은 [`Directory.Build.props`](Directory.Build.props) 의 `VersionPrefix` 하나로 관리하고
+모든 프로젝트가 공유한다. 앱은 좌측 레일 로고 아래, CLI 는 `help` 첫 줄에 표시한다.
+
+**클론 후 한 번** 실행해 커밋 훅을 켠다:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+그러면 [`.githooks/pre-commit`](.githooks/pre-commit) 이 커밋마다 패치 자리를 올려 커밋에
+포함시킨다. 건너뛰려면 `SKIP_VERSION_BUMP=1 git commit ...`. 머지·리베이스·체리픽 중에는
+충돌을 만들지 않도록 스스로 빠진다.
+
+> `pre-push` 가 아니라 `pre-commit` 인 이유: push 시점에는 git 이 전송할 커밋 SHA 를 이미
+> 확정해 놓아서, 훅이 새로 만든 커밋을 그 push 에 실을 수 없다. 억지로 끼우면
+> non-fast-forward 로 거부되거나 두 번 push 해야 한다. 커밋 때 올려두면 그다음 push 는
+> 자연히 올라간 버전을 가져간다.
+
+[`.github/workflows/build.yml`](.github/workflows/build.yml) 이 버전을 최종 결정한다:
+
+| 상황 | 버전 | 산출물 |
+|---|---|---|
+| `master` 푸시 / PR | `<VersionPrefix>-dev.<run_number>` | Actions 아티팩트 (푸시마다 번호 증가) |
+| 태그 `v1.2.3` 푸시 | `1.2.3` | **GitHub Release 자동 생성** |
+
+릴리스에 올라가는 파일 4개:
+
+| 파일 | 내용 |
+|---|---|
+| `PdPowerTool.exe` | GUI, 단일 exe (~1 MB, .NET 8 Desktop Runtime 필요) |
+| `PdPowerTool-standalone.exe` | GUI, 런타임 포함 (~70 MB, 아무 PC에서나 실행) |
+| `PdPowerCli.exe` | CLI, 단일 exe (.NET 8 Runtime 필요) |
+| `PdPowerCli-standalone.exe` | CLI, 런타임 포함 |
+
+릴리스 내는 방법 — 태그만 밀면 된다:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+CI 는 퍼블리시 전에 테스트를 돌리므로, 테스트가 깨지면 릴리스가 만들어지지 않는다.
 
 ### 빌드 · 실행
 

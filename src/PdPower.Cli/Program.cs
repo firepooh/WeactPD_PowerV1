@@ -1,3 +1,4 @@
+using System.Reflection;
 using PdPower.Core;
 using PdPower.Core.Models;
 using PdPower.Core.Protocol;
@@ -498,8 +499,19 @@ internal static class Program
         return false;
     }
 
-    private static void PrintUsage() => Console.WriteLine("""
-        PdPower.Cli — WeAct PD Power Mini V1 실장비 검증 도구
+    /// <summary>CI 가 -p:Version= 으로 넣은 값. +커밋해시 접미사는 잘라낸다.</summary>
+    private static string Version()
+    {
+        string version = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? "?";
+
+        int plus = version.IndexOf('+');
+        return plus > 0 ? version[..plus] : version;
+    }
+
+    private static void PrintUsage() => Console.WriteLine($"""
+        PdPower.Cli v{Version()} — WeAct PD Power Mini V1 실장비 검증 도구
 
         사용법:
           PdPower.Cli [옵션] <명령> [인자]

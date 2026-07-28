@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# 커밋마다 Directory.Build.props 의 패치 버전을 올리고 같은 커밋에 포함시킨다.
+#
+# pre-push 가 아니라 pre-commit 인 이유: push 시점에는 git 이 보낼 커밋 SHA 를 이미
+# 확정해 놓았기 때문에, 훅이 새로 만든 커밋은 그 push 에 실을 수 없다. 억지로 끼우면
+# non-fast-forward 로 거부되거나 두 번 push 해야 한다. 커밋 시점에 올려두면 그다음
+# push 는 자연히 올라간 버전을 가져간다.
+#
+# 건너뛰려면:  SKIP_VERSION_BUMP=1 git commit ...
+
+[ -n "$SKIP_VERSION_BUMP" ] && exit 0
+
+# 머지·리베이스·체리픽 중에는 손대지 않는다 (충돌 유발)
+git_dir=$(git rev-parse --git-dir)
+for marker in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
+    [ -e "$git_dir/$marker" ] && exit 0
+done
+
+file="$(git rev-parse --show-toplevel)/Directory.Build.props"
+[ -f "$file" ] || exit 0
+
+# 줄 시작에 고정한다 — 설명 주석에 같은 태그가 들어가도 그쪽을 집지 않도록
+current=$(sed -n 's|^[[:space:]]*<VersionPrefix>\([^<]*\)</VersionPrefix>.*|\1|p' "$file" | head -1)
+case "$current" in
+    [0-9]*.[0-9]*.[0-9]*) ;;
+    *)
+        echo "pre-commit: VersionPrefix 를 읽을 수 없습니다 ('$current') — 버전 증가를 건너뜁니다." >&2
+        exit 0
+        ;;
+esac
+
+major=${current%%.*}
+rest=${current#*.}
+minor=${rest%%.*}
+patch=${rest#*.}
+next="$major.$minor.$((patch + 1))"
+
+# 구분자로 | 를 쓴다 (버전에 / 가 없으므로 안전)
+sed -i "s|<VersionPrefix>$current</VersionPrefix>|<VersionPrefix>$next</VersionPrefix>|" "$file"
+git add "$file"
+
+echo "pre-commit: 버전 $current → $next"

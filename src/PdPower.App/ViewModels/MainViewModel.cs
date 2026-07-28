@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Windows.Threading;
 using PdPower.Core;
@@ -130,6 +131,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
 
         RefreshPorts();
+    }
+
+    /// <summary>
+    /// 실행 중인 앱 버전. CI 가 <c>-p:Version=</c> 으로 넣은 값이 그대로 보인다.
+    /// SourceLink 등이 붙이는 <c>+커밋해시</c> 접미사는 잘라낸다.
+    /// </summary>
+    /// <remarks>WPF 는 인스턴스 경로로 static 속성을 못 찾으므로 값만 캐시하고 인스턴스로 노출한다.</remarks>
+    private static readonly string CachedVersion = ResolveAppVersion();
+
+    public string AppVersion => CachedVersion;
+
+    private static string ResolveAppVersion()
+    {
+        string version = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? "?";
+
+        int plus = version.IndexOf('+');
+        return plus > 0 ? version[..plus] : version;
     }
 
     // ── 연결 ─────────────────────────────────────────────────────────────
