@@ -37,19 +37,33 @@
                 </Grid.RowDefinitions>
 
                 <!-- 로고 -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="6,0,0,14">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="6,0,0,10">
                     <Border Width="18" Height="18" CornerRadius="5" Background="{StaticResource AccentBrush}" />
                     <TextBlock Text="PD Power" FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="9,0,0,0" />
                 </StackPanel>
 
                 <!-- 내비 -->
-                <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                <StackPanel Grid.Row="1" Margin="0,0,0,10">
                     <Button Content="Monitor" Command="{Binding ShowMonitorCommand}">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource NavItem}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsMonitorView}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Setup" Margin="0,2,0,0" Command="{Binding ShowSetupCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavItem}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSetupView}" Value="True">
                                         <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
                                         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
                                         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -76,7 +90,7 @@
                 </StackPanel>
 
                 <!-- 프리셋 -->
-                <Border Grid.Row="2" Style="{StaticResource HairlineCard}" Background="Transparent" Padding="10,12">
+                <Border Grid.Row="2" Style="{StaticResource HairlineCard}" Background="Transparent" Padding="10,10">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -570,6 +584,100 @@
                                 Command="{Binding ToggleTrendCommand}"
                                 Visibility="{Binding IsTrendHidden, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
+                </Border>
+
+                <!-- Setup -->
+                <Border Style="{StaticResource HairlineCard}" Padding="16,14"
+                        Visibility="{Binding IsSetupView, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="Setup" Style="{StaticResource CardTitle}" Margin="0,0,0,12" />
+
+                        <!-- 설정 한 줄: 설명(좌) + 제어(우) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Over-current protection" FontSize="13"
+                                               Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="OCP" Style="{StaticResource MicroMono}" Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           Text="임계값은 Current limit 설정값이며, 초과 후 약 200 ms 뒤 출력이 차단됩니다. 끄면 대신 CC로 물려 출력이 유지됩니다." />
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Text="휘발성 설정 — 전원 재인가 후에도 유지하려면 장치에 저장해야 합니다." />
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Style="{StaticResource StepperPill}" Width="132"
+                                    VerticalAlignment="Center">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" CornerRadius="6,0,0,6">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOcpEnabled}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Button Content="ON" Command="{Binding OcpOnCommand}"
+                                                AutomationProperties.AutomationId="OcpOnButton">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOcpEnabled}" Value="True">
+                                                            <Setter Property="Foreground" Value="White" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Border>
+
+                                    <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+
+                                    <Border Grid.Column="2" CornerRadius="0,6,6,0">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOcpEnabled}" Value="True">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Button Content="OFF" Command="{Binding OcpOffCommand}"
+                                                AutomationProperties.AutomationId="OcpOffButton">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOcpEnabled}" Value="False">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
                 </Border>
 
                 <!-- Log -->

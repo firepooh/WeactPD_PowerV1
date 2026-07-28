@@ -46,7 +46,7 @@ OUTPUT_DISPLAY, OCP_EN, OFFSET_EN, BRIGHTNESS, INPUT_STATE)은 전부 실장비 
 
 | 명령 | Head | 페이로드 | 비고 |
 |---|---|---|---|
-| OUTPUT_EN | `0x02` | `x` | ⚠ xlsx는 `0=enable`, 제조사 py 예제는 `1=enable` — 상충. Core 기본값은 `1=enable`, 확정은 `PdPower.Cli probe-outputen` 참조 |
+| OUTPUT_EN | `0x02` | `x` | **`1=enable`** (실측 확정). xlsx의 `0=enable` 주석은 오류 — 아래 참조 |
 | OUTPUT_ID | `0x03` | `x` | 프리셋 그룹 M0–M4 (0–4) |
 | OUTPUT_DATA | `0x04` | `id, v_l8, v_h8, i_l8, i_h8` | 전압 mV, 전류 mA |
 | OUTPUT_OCP_EN | `0x06` | `x` | 과전류 보호 |
@@ -131,6 +131,8 @@ Trend 차트는 [`Controls/TrendChart.cs`](src/PdPower.App/Controls/TrendChart.c
 
 ![Log 화면 — 원시 프레임 트레이스](docs/images/app-log.png)
 
+![Setup 화면 — OCP on/off](docs/images/app-setup.png)
+
 ## 4. 솔루션 구조
 
 ```
@@ -211,6 +213,9 @@ dotnet run --project src/PdPower.App
   - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
   - [x] 듀얼축 Trend 차트 + 오토스케일, Clear/Hide
   - [x] Log 화면 (원시 프레임 트레이스 토글)
+  - [x] Setup 화면 — OCP on/off (되읽기 확인)
+  - [ ] Setup 나머지: 설정 저장(`0x44`), 오프셋 보정, 밝기, 방전
+  - [ ] 미연결 시 CV 배지가 뜨는 문제 (기본값이 `CV` 라 장치 없이도 표시됨)
   - [ ] 레일 56 px 아이콘 모드 접힘
   - [ ] 프리셋 더블클릭 인라인 편집
   - [ ] Trend 시간 범위 선택 (1m / 5m / 1h)
@@ -225,13 +230,34 @@ dotnet run --project src/PdPower.App
 
 - `INPUT_PD_VOLTAGE` 변경은 **출력 OFF + 출력전압 5 V 미만**일 때만 적용됨
 - 3 A 연속 출력은 방열 보강 필요 (2 A까지는 상시 가능)
-- **OUTPUT_EN 극성 미확정** — 문서(xlsx)와 예제 코드(py)가 상충한다. 출력 단자에 전압이 인가되는
-  동작이라 자동 검증을 하지 않았다. 부하를 분리한 뒤 아래로 확정할 것:
-
-  ```bash
-  dotnet run --project src/PdPower.Cli -- --port COM9 probe-outputen
-  ```
-
-  판정 결과가 `0x00` 이면 `PdPowerDevice.OutputEnableOnValue` 기본값을 `0x00` 으로 바꾼다.
-- 프리셋·PD 전압 등 쓰기 값은 휘발성 — `SYSTEM_CONFIG_SAVE`(GUI의 Save) 없이는 전원 재인가 시 소실
+- **`*_EN` 계열은 `1=enable` 이다 (실측 확정).** xlsx 표는 `OUTPUT_EN`·`OCP_EN`·`OFFSET_EN`·
+  `DISCHARGE_EN` 네 명령에 똑같이 "x=0,enable;x=1,disable" 주석을 달아놨는데 **틀렸다.**
+  근거: ① 벤더 README가 OCP를 `0=Disabled, 1=Enabled`로 기술 ② 벤더 Python 예제가 `1=enable`
+  ③ COM9 실측 — `0x01`을 보내면 출력이 실제로 켜지고 OCP 보호가 발동했다.
+  `PdPowerDevice.OutputEnableOnValue` 기본값 `0x01`이 맞다.
+- 프리셋·PD 전압 등 쓰기 값은 휘발성 — `SYSTEM_CONFIG_SAVE` 없이는 전원 재인가 시 소실
 - UART 직결 시 3.3 V 레벨, 외부 UART 칩은 역전류 보호 필요
+
+## 8. OCP 실측 결과 (12 V, 약 21 Ω 부하, COM9)
+
+`PdPower.Cli test-ocp 12.0 0.2` 로 전류 제한을 부하 전류보다 낮게 두고 측정했다.
+
+| | OCP OFF | OCP ON |
+|---|---|---|
+| 결과 | CC 물림, **출력 유지** | **220 ms 에 차단** |
+| 정상상태 | 4.15 V / 0.200 A (제한값에 정확히 물림) | 도달 못 함 |
+| 최종 상태 비트 | `ON` / `ConstantCurrent` | `OFF` / `OverCurrent` |
+
+실측으로 확인한, 문서에 없는 사실 세 가지:
+
+1. **OC 는 래치다.** 트립 후 출력을 끄거나 OCP 를 꺼도 상태 비트에 `OverCurrent`(raw `0x04`)가
+   계속 남는다. **출력을 다시 켜면 지워진다.**
+2. **트립 타이머는 "표시 전류가 설정값을 넘는 시점"이 아니라 "장치가 CC 에 진입한 시점" 기준으로
+   보인다.** 과부하일 때 소프트스타트 램프 중 곧바로 CC 로 들어가고 약 200 ms 뒤 차단되므로,
+   **표시 전류가 설정값에 도달하는 걸 보기 전에 트립한다** (측정 중 표시 전류는 0.03 A 수준이었다).
+3. **출력 전압 램프가 느리다** — CC 물림 상태에서 정상상태까지 약 640 ms 걸린다.
+   짧은 관찰 창으로는 "전압이 낮다"고 오판할 수 있다.
+
+실무적 함의: 과부하 + OCP ON 이면 목표 전압에 도달하지 못하고 저전압 펄스만 나온 뒤 꺼진다.
+그리고 GUI 의 250 ms 폴링은 CC 구간(약 200 ms)을 **놓칠 수 있고**, 대개 래치된 `OFF`/`OC` 결과만
+보게 된다. 트립 원인을 보여주려면 폴링을 빠르게 하거나 트립 이벤트를 따로 기록해야 한다.

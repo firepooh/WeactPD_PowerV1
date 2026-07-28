@@ -40,8 +40,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveConfigCommand = new AsyncRelayCommand(_ => SaveConfigAsync(), _ => IsConnected, ReportError);
         ClearHistoryCommand = new RelayCommand(_ => History.Clear());
         ToggleTrendCommand = new RelayCommand(_ => IsTrendVisible = !IsTrendVisible);
-        ShowMonitorCommand = new RelayCommand(_ => IsMonitorView = true);
-        ShowLogCommand = new RelayCommand(_ => IsMonitorView = false);
+        ShowMonitorCommand = new RelayCommand(_ => ActiveView = AppView.Monitor);
+        ShowSetupCommand = new RelayCommand(_ => ActiveView = AppView.Setup);
+        ShowLogCommand = new RelayCommand(_ => ActiveView = AppView.Log);
+        OcpOnCommand = new AsyncRelayCommand(_ => SetOcpAsync(true), _ => IsConnected && !IsOcpEnabled, ReportError);
+        OcpOffCommand = new AsyncRelayCommand(_ => SetOcpAsync(false), _ => IsConnected && IsOcpEnabled, ReportError);
 
         _pollTimer = new DispatcherTimer { Interval = PollInterval };
         _pollTimer.Tick += async (_, _) => await PollAsync().ConfigureAwait(true);
@@ -174,6 +177,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedPdVoltage = PdVoltageOptions[Math.Clamp(index + direction, 0, PdVoltageOptions.Length - 1)];
     }
 
+    // ── Setup: 과전류 보호 ───────────────────────────────────────────────
+
+    /// <summary>
+    /// OCP. 임계값은 별도 설정이 아니라 현재 프리셋의 전류값이고,
+    /// 초과 후 약 200 ms 뒤 출력이 차단된다(벤더 README). 휘발성 — 유지하려면 설정 저장 필요.
+    /// </summary>
+    private bool _isOcpEnabled;
+    public bool IsOcpEnabled
+    {
+        get => _isOcpEnabled;
+        private set { if (SetField(ref _isOcpEnabled, value)) RaiseCommandStates(); }
+    }
+
     // ── 상태 메시지 / 로그 ───────────────────────────────────────────────
 
     private string _statusMessage = "포트를 선택하고 연결하세요.";
@@ -183,14 +199,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── 화면 전환 (레일 내비) ────────────────────────────────────────────
 
-    private bool _isMonitorView = true;
-    public bool IsMonitorView
+    private AppView _activeView = AppView.Monitor;
+    public AppView ActiveView
     {
-        get => _isMonitorView;
-        private set { if (SetField(ref _isMonitorView, value)) OnPropertyChanged(nameof(IsLogView)); }
+        get => _activeView;
+        private set
+        {
+            if (!SetField(ref _activeView, value)) return;
+            OnPropertyChanged(nameof(IsMonitorView));
+            OnPropertyChanged(nameof(IsSetupView));
+            OnPropertyChanged(nameof(IsLogView));
+        }
     }
 
-    public bool IsLogView => !IsMonitorView;
+    public bool IsMonitorView => ActiveView == AppView.Monitor;
+    public bool IsSetupView => ActiveView == AppView.Setup;
+    public bool IsLogView => ActiveView == AppView.Log;
 
     /// <summary>Trend 카드 접기 — 디자인의 Hide / Show trend graph 동작.</summary>
     private bool _isTrendVisible = true;
@@ -224,7 +248,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ClearHistoryCommand { get; }
     public RelayCommand ToggleTrendCommand { get; }
     public RelayCommand ShowMonitorCommand { get; }
+    public RelayCommand ShowSetupCommand { get; }
     public RelayCommand ShowLogCommand { get; }
+    public AsyncRelayCommand OcpOnCommand { get; }
+    public AsyncRelayCommand OcpOffCommand { get; }
 
     // ── 동작 ─────────────────────────────────────────────────────────────
 
@@ -275,6 +302,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         IsConnected = false;
         OutputEnabled = false;
+        IsOcpEnabled = false;
         MeasuredVolts = MeasuredAmps = InputVolts = 0;
         Regulation = OutputRegulation.ConstantVoltage;
         DeviceName = FirmwareVersion = SerialNumber = "—";
@@ -298,6 +326,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var active = Presets[ActivePresetId];
         SetVolts = active.Volts;
         SetAmps = active.Amps;
+
+        IsOcpEnabled = await _device.ReadOcpEnabledAsync().ConfigureAwait(true);
     }
 
     private async Task PollAsync()
@@ -368,6 +398,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StatusMessage = $"M{ActivePresetId} → {volts:F3} V / {amps:F3} A (저장하지 않으면 휘발)";
     }
 
+    /// <summary>OCP를 바꾸고 장치에서 되읽어 확인한다 — 쓰기만 하면 실제 반영 여부를 알 수 없다.</summary>
+    private async Task SetOcpAsync(bool enabled)
+    {
+        if (_device is null) return;
+
+        await _device.SetOcpEnabledAsync(enabled).ConfigureAwait(true);
+        IsOcpEnabled = await _device.ReadOcpEnabledAsync().ConfigureAwait(true);
+        StatusMessage = IsOcpEnabled
+            ? $"OCP 켜짐 — {SetAmps:F3} A 초과 시 약 200 ms 후 출력 차단"
+            : "OCP 꺼짐 — 전류 제한에 걸리면 CC 동작(출력 유지)";
+    }
+
     private async Task SetOutputAsync(bool enabled)
     {
         if (_device is null) return;
@@ -421,6 +463,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectPresetCommand.RaiseCanExecuteChanged();
         OutputOnCommand.RaiseCanExecuteChanged();
         OutputOffCommand.RaiseCanExecuteChanged();
+        OcpOnCommand.RaiseCanExecuteChanged();
+        OcpOffCommand.RaiseCanExecuteChanged();
         NudgeVoltsCommand.RaiseCanExecuteChanged();
         NudgeAmpsCommand.RaiseCanExecuteChanged();
         NudgePdCommand.RaiseCanExecuteChanged();
@@ -436,6 +480,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose() => Disconnect();
 }
+
+/// <summary>레일 내비가 전환하는 화면. 목업의 접힌 레일 코드 MO / ST / LG 에 대응한다.</summary>
+public enum AppView { Monitor, Setup, Log }
 
 /// <summary>좌측 레일의 프리셋 한 줄.</summary>
 public sealed class PresetItem(int id) : ObservableObject
@@ -461,8 +508,10 @@ public sealed class PresetItem(int id) : ObservableObject
     private bool _isActive;
     public bool IsActive { get => _isActive; set => SetField(ref _isActive, value); }
 
-    /// <summary>레일 폭(196 px)에 잘리지 않도록 불필요한 0을 뺀다 — "3.3 V · 0.5 A".</summary>
-    public string Summary => $"{Volts:0.##} V · {Amps:0.##} A";
+    /// <summary>
+    /// 레일 폭(196 px)에 스크롤바가 생겨도 잘리지 않게 최대한 짧게 — "3.3V · 0.5A".
+    /// </summary>
+    public string Summary => $"{Volts:0.##}V · {Amps:0.##}A";
 
     public void Update(double volts, double amps, bool isActive)
     {

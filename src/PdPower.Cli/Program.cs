@@ -130,6 +130,18 @@ internal static class Program
                 Console.WriteLine("설정을 장치에 저장했습니다.");
                 return 0;
 
+            case "ocp":
+            {
+                string arg = options.RequireWord(0, "on|off");
+                bool enable = arg.Equals("on", StringComparison.OrdinalIgnoreCase);
+                await device.SetOcpEnabledAsync(enable).ConfigureAwait(false);
+                Console.WriteLine($"OCP: {await device.ReadOcpEnabledAsync().ConfigureAwait(false)} (읽기 확인)");
+                return 0;
+            }
+
+            case "test-ocp":
+                return await TestOcp(device, options).ConfigureAwait(false);
+
             case "probe-outputen":
                 return await ProbeOutputEnablePolarity(device, options).ConfigureAwait(false);
 
@@ -268,6 +280,153 @@ internal static class Program
         return 0;
     }
 
+    /// <summary>
+    /// OCP 동작을 실측한다. 같은 전압/전류 설정에서 OCP off(→CC 물림)와 on(→트립)을 연달아 관찰해
+    /// 문서에 없는 두 가지를 확인한다: 트립 시 output-en 비트가 0으로 떨어지는지, 래치인지 자동복구인지.
+    /// 출력 단자에 실제로 전압이 인가되므로 부하를 알고 실행해야 한다.
+    /// </summary>
+    private static async Task<int> TestOcp(PdPowerDevice device, CommandLine options)
+    {
+        double volts = options.RequireDouble(0, "volts");
+        double amps = options.RequireDouble(1, "amps");
+
+        var initial = await device.ReadOutputStatusAsync().ConfigureAwait(false);
+        int originalPresetId = await device.ReadActivePresetIdAsync().ConfigureAwait(false);
+        var originalPreset = await device.ReadPresetAsync(originalPresetId).ConfigureAwait(false);
+        bool originalOcp = await device.ReadOcpEnabledAsync().ConfigureAwait(false);
+
+        Console.WriteLine($"현재 상태 : 출력 {(initial.Enabled ? "ON" : "OFF")}, OCP {originalOcp}");
+        Console.WriteLine($"복원 대상 : M{originalPresetId} = {originalPreset.Volts:F3} V / {originalPreset.Amps:F3} A, OCP {originalOcp}");
+        Console.WriteLine($"시험 조건 : {volts:F3} V / 전류 제한 {amps:F3} A → 부하 전류가 제한을 넘어야 트립\n");
+
+        if (!Confirm(options, $"출력 단자에 {volts:F3} V 가 인가되고, 의도적으로 과전류 보호를 발동시킵니다."))
+            return 3;
+
+        try
+        {
+            // 항상 출력 OFF 에서 시작해 트립 시점을 명확히 본다
+            await device.SetOutputEnabledAsync(false).ConfigureAwait(false);
+            await Task.Delay(300).ConfigureAwait(false);
+            await device.WritePresetAsync(originalPresetId, volts, amps).ConfigureAwait(false);
+
+            await RunOcpPhase(device, "1단계 · OCP OFF (전류 제한 = CC 물림 예상)", ocp: false).ConfigureAwait(false);
+            await RunOcpPhase(device, "2단계 · OCP ON (약 200 ms 후 차단 예상)", ocp: true).ConfigureAwait(false);
+            return 0;
+        }
+        finally
+        {
+            // 시험 중 무슨 일이 있어도 출력을 끄고 원래 설정으로 되돌린다
+            Console.WriteLine("\n복원 중…");
+            await device.SetOutputEnabledAsync(false).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+            await device.WritePresetAsync(originalPresetId, originalPreset.Volts, originalPreset.Amps).ConfigureAwait(false);
+            await device.SetActivePresetIdAsync(originalPresetId).ConfigureAwait(false);
+            await device.SetOcpEnabledAsync(originalOcp).ConfigureAwait(false);
+
+            var restored = await device.ReadOutputStatusAsync().ConfigureAwait(false);
+            var restoredPreset = await device.ReadPresetAsync(originalPresetId).ConfigureAwait(false);
+            Console.WriteLine($"복원 완료 : 출력 {(restored.Enabled ? "ON ← 확인 필요" : "OFF")}, " +
+                              $"M{restoredPreset.PresetId} = {restoredPreset.Volts:F3} V / {restoredPreset.Amps:F3} A, " +
+                              $"OCP {await device.ReadOcpEnabledAsync().ConfigureAwait(false)}");
+
+            // OC 는 래치라서 출력을 끄거나 OCP 를 꺼도 상태 비트에 남는다 (실측 확인).
+            if (restored.Regulation == OutputRegulation.OverCurrent)
+                Console.WriteLine("주의      : OC 래치가 남아 있습니다 — 출력을 다시 켜면 지워집니다.");
+        }
+    }
+
+    /// <summary>출력을 켜고 상태 전이를 폴링으로 기록한다.</summary>
+    private static async Task RunOcpPhase(PdPowerDevice device, string title, bool ocp)
+    {
+        const int WatchMs = 2500;
+        const int SettleMs = 1500;
+
+        // 장치 표시값 갱신보다 빠르게 읽으면 같은 값만 중복 수집되고 버스만 붐빈다.
+        // 10 ms 면 200 ms 트립을 충분히 분해한다.
+        const int SampleIntervalMs = 10;
+
+        Console.WriteLine($"── {title} ──");
+        await device.SetOcpEnabledAsync(ocp).ConfigureAwait(false);
+        bool ocpReadback = await device.ReadOcpEnabledAsync().ConfigureAwait(false);
+        Console.WriteLine($"OCP 설정 {ocp} → 읽기 확인 {ocpReadback}" +
+                          (ocpReadback == ocp ? "" : "  ⚠ 불일치 — 극성 확인 필요"));
+
+        var samples = new List<(long Ms, double V, double A, bool En, OutputRegulation Reg)>();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
+        await device.SetOutputEnabledAsync(true).ConfigureAwait(false);
+
+        long tripMs = -1;
+        while (clock.ElapsedMilliseconds < WatchMs)
+        {
+            var measurement = await device.ReadMeasurementAsync().ConfigureAwait(false);
+            var status = await device.ReadOutputStatusAsync().ConfigureAwait(false);
+            long now = clock.ElapsedMilliseconds;
+            samples.Add((now, measurement.Volts, measurement.Amps, status.Enabled, status.Regulation));
+
+            // 첫 이상 징후(출력 꺼짐 또는 OC 상태)를 트립으로 본다
+            if (tripMs < 0 && (!status.Enabled || status.Regulation == OutputRegulation.OverCurrent))
+            {
+                tripMs = now;
+                Console.WriteLine($"  ▶ {now} ms — 출력 {(status.Enabled ? "ON" : "OFF")}, {status.Regulation}");
+                break;
+            }
+
+            await Task.Delay(SampleIntervalMs).ConfigureAwait(false);
+        }
+
+        // 트립 후 자동 복구 여부 확인
+        if (tripMs >= 0)
+        {
+            var settle = System.Diagnostics.Stopwatch.StartNew();
+            while (settle.ElapsedMilliseconds < SettleMs)
+            {
+                var measurement = await device.ReadMeasurementAsync().ConfigureAwait(false);
+                var status = await device.ReadOutputStatusAsync().ConfigureAwait(false);
+                samples.Add((tripMs + settle.ElapsedMilliseconds, measurement.Volts, measurement.Amps,
+                            status.Enabled, status.Regulation));
+                await Task.Delay(SampleIntervalMs).ConfigureAwait(false);
+            }
+        }
+
+        PrintPhaseSummary(samples, tripMs);
+
+        await device.SetOutputEnabledAsync(false).ConfigureAwait(false);
+        await Task.Delay(500).ConfigureAwait(false);
+        Console.WriteLine();
+    }
+
+    private static void PrintPhaseSummary(
+        List<(long Ms, double V, double A, bool En, OutputRegulation Reg)> samples, long tripMs)
+    {
+        if (samples.Count == 0) { Console.WriteLine("  샘플 없음"); return; }
+
+        Console.WriteLine($"  샘플 {samples.Count}개, 평균 간격 {samples[^1].Ms / (double)samples.Count:F1} ms");
+        Console.WriteLine("     t(ms)      V        A   출력  상태");
+
+        // 상태 전이(◀)와 100 ms 간격 스냅샷을 함께 찍는다.
+        // 전이만 찍으면 CC 물림 후의 정상상태 전압·전류가 안 보인다.
+        (bool En, OutputRegulation Reg)? previous = null;
+        long lastPrintedMs = long.MinValue;
+        foreach (var s in samples)
+        {
+            bool changed = previous is null || previous.Value.En != s.En || previous.Value.Reg != s.Reg;
+            bool periodic = s.Ms - lastPrintedMs >= 100;
+            if (!changed && !periodic) continue;
+
+            Console.WriteLine($"  {s.Ms,7}  {s.V,7:F3}  {s.A,7:F3}   {(s.En ? "ON " : "OFF")}  {s.Reg}" +
+                              (changed ? "  ◀ 전이" : ""));
+            previous = (s.En, s.Reg);
+            lastPrintedMs = s.Ms;
+        }
+
+        var last = samples[^1];
+        Console.WriteLine($"  최대 전류 {samples.Max(s => s.A):F3} A, 최대 전압 {samples.Max(s => s.V):F3} V");
+        Console.WriteLine(tripMs >= 0
+            ? $"  판정: {tripMs} ms 에 트립. 최종 출력 {(last.En ? "ON (자동 복구됨)" : "OFF (래치)")}, 최종 상태 {last.Reg}"
+            : $"  판정: 트립 없음. 최종 출력 {(last.En ? "ON" : "OFF")}, 최종 상태 {last.Reg}");
+    }
+
     private static bool Confirm(CommandLine options, string warning)
     {
         Console.WriteLine($"경고: {warning}");
@@ -299,8 +458,10 @@ internal static class Program
           set <id> <V> <A>          프리셋 값 쓰기
           pd <V>                    PD 입력 전압 요청 (8 V 이상)
           on / off                  출력 on/off
+          ocp on|off                과전류 보호 설정
           save                      휘발성 설정을 장치에 저장
           probe-outputen            OUTPUT_EN 극성 실측 판정
+          test-ocp <V> <A>          OCP off/on 을 연달아 실측 (부하 필요, 시험 후 원복)
 
         옵션:
           --port <name>             기본 COM9
@@ -378,6 +539,8 @@ internal sealed class CommandLine
 
     public int? OptionalInt(int index)
         => index < _positional.Count && int.TryParse(_positional[index], out int value) ? value : null;
+
+    public string RequireWord(int index, string name) => Require(index, name);
 
     private string Require(int index, string name)
         => index < _positional.Count ? _positional[index] : throw new ArgumentException($"{name} 인자가 없습니다.");
