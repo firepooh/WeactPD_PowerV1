@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
+using System.Text;
 using System.Windows.Threading;
 using PdPower.Core;
 using PdPower.Core.Models;
@@ -83,8 +85,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         NudgePdCommand = new RelayCommand(p => StepPdVoltage(ToInt(p)), _ => IsConnected && !OutputEnabled);
         SetPdVoltageCommand = new AsyncRelayCommand(_ => SetPdVoltageAsync(), _ => IsConnected && !OutputEnabled, ReportError);
         SaveConfigCommand = new AsyncRelayCommand(_ => SaveConfigAsync(), _ => IsConnected, ReportError);
-        ClearHistoryCommand = new RelayCommand(_ => History.Clear());
+        ClearHistoryCommand = new RelayCommand(_ => { History.Clear(); RefreshWindow(force: true); });
         SelectRangeCommand = new RelayCommand(p => SelectRange(ToInt(p)));
+        ToggleFreezeCommand = new RelayCommand(_ => IsFrozen = !IsFrozen);
+        ToggleFitScaleCommand = new RelayCommand(_ => IsFitScale = !IsFitScale);
+        ExportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => SampleCount > 0);
         NudgePollIntervalCommand = new RelayCommand(p => PollIntervalMs += ToInt(p) * PollIntervalStepMs);
         NudgeStatusDivisorCommand = new RelayCommand(p => StatusDivisor += ToInt(p));
         ToggleTrendCommand = new RelayCommand(_ => IsTrendVisible = !IsTrendVisible);
@@ -267,6 +272,67 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void SelectRange(int seconds)
     {
         if (RangeSeconds.Contains(seconds)) SelectedRangeSeconds = seconds;
+        RefreshWindow(force: true);
+    }
+
+    // ── 차트에 넘길 창 · 통계 · 정지 ──────────────────────────────────────
+
+    private long _windowVersion = -1;
+
+    /// <summary>
+    /// 차트가 그리는 한 장. 정지 중이면 그때 잘라낸 장을 계속 들고 있으므로
+    /// 뒤에서 링 버퍼가 덮여도 화면이 흔들리지 않는다.
+    /// </summary>
+    private MeasurementWindow _currentWindow = MeasurementWindow.Empty;
+    public MeasurementWindow CurrentWindow
+    {
+        get => _currentWindow;
+        private set
+        {
+            if (!SetField(ref _currentWindow, value)) return;
+            Stats = MeasurementStats.From(value);
+            OnPropertyChanged(nameof(SampleCount));
+        }
+    }
+
+    private MeasurementStats _stats;
+    public MeasurementStats Stats { get => _stats; private set => SetField(ref _stats, value); }
+
+    public int SampleCount => CurrentWindow.Samples.Length;
+
+    /// <summary>정지 중에는 라이브 갱신을 멈추고 잘라둔 장을 유지한다.</summary>
+    private bool _isFrozen;
+    public bool IsFrozen
+    {
+        get => _isFrozen;
+        private set
+        {
+            if (!SetField(ref _isFrozen, value)) return;
+            RaiseCommandStates();
+            if (!value) RefreshWindow(force: true);
+            StatusMessage = value
+                ? $"그래프 정지 — {SampleCount}개 샘플을 붙잡았습니다. 수집은 계속됩니다."
+                : "그래프 재생.";
+        }
+    }
+
+    /// <summary>
+    /// Y축을 0부터가 아니라 데이터 범위에 맞춘다. 12.00 V 부근 리플처럼
+    /// 0~20 V 축에서는 직선으로만 보이는 것을 관찰할 때 필요하다.
+    /// </summary>
+    private bool _isFitScale;
+    public bool IsFitScale { get => _isFitScale; private set => SetField(ref _isFitScale, value); }
+
+    /// <summary>새 데이터가 들어왔을 때만 잘라낸다 — 매 프레임 복사를 피한다.</summary>
+    private void RefreshWindow(bool force = false)
+    {
+        if (IsFrozen && !force) return;
+
+        long version = History.Version;
+        if (!force && version == _windowVersion) return;
+
+        _windowVersion = version;
+        CurrentWindow = History.Capture(DateTime.Now);
     }
 
     // ── 폴링 주기 설정 ───────────────────────────────────────────────────
@@ -447,6 +513,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand SaveConfigCommand { get; }
     public RelayCommand ClearHistoryCommand { get; }
     public RelayCommand SelectRangeCommand { get; }
+    public RelayCommand ToggleFreezeCommand { get; }
+    public RelayCommand ToggleFitScaleCommand { get; }
+    public RelayCommand ExportCsvCommand { get; }
     public RelayCommand NudgePollIntervalCommand { get; }
     public RelayCommand NudgeStatusDivisorCommand { get; }
     public RelayCommand ToggleTrendCommand { get; }
@@ -755,7 +824,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 }
 
                 _live = new LiveReading(measurement.Volts, measurement.Amps, enabled, regulation, inputState, inputVolts);
-                History.Add(new MeasurementSample(DateTime.Now, measurement.Volts, measurement.Amps));
+                History.Add(new MeasurementSample(
+                    DateTime.Now, measurement.Volts, measurement.Amps, regulation, enabled));
 
                 tick++;
                 await ticker.WaitForNextTickAsync(ct).ConfigureAwait(false);
@@ -782,6 +852,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>백그라운드가 모아둔 최신 값을 화면에 반영한다. 60 ms 마다 한 번.</summary>
     private void PublishLiveReading()
     {
+        RefreshWindow();
+
         if (_live is not { } reading) return;
 
         MeasuredVolts = reading.Volts;
@@ -790,6 +862,49 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Regulation = reading.Regulation;
         InputState = reading.InputState;
         InputVolts = reading.InputVolts;
+    }
+
+    // ── CSV 내보내기 ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 저장 경로를 물어보는 콜백. ViewModel 이 파일 대화상자를 직접 열지 않도록
+    /// <c>MainWindow</c> 가 채워 넣는다.
+    /// </summary>
+    public Func<string, string?>? RequestSavePath { get; set; }
+
+    /// <summary>현재 보이는 구간을 그대로 CSV 로 쓴다 (정지 중이면 정지된 구간).</summary>
+    private void ExportCsv()
+    {
+        var window = CurrentWindow;
+        if (window.IsEmpty) return;
+
+        string suggested = $"pdpower_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        string? path = RequestSavePath?.Invoke(suggested);
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            using var writer = new StreamWriter(path, append: false, Encoding.UTF8);
+            writer.WriteLine("timestamp,volts,amps,watts,regulation,output_enabled");
+
+            foreach (var s in window.Samples)
+            {
+                writer.WriteLine(string.Join(',',
+                    s.Timestamp.ToString("O", CultureInfo.InvariantCulture),
+                    s.Volts.ToString("F3", CultureInfo.InvariantCulture),
+                    s.Amps.ToString("F3", CultureInfo.InvariantCulture),
+                    s.Watts.ToString("F3", CultureInfo.InvariantCulture),
+                    s.Regulation,
+                    s.OutputEnabled ? 1 : 0));
+            }
+
+            StatusMessage = $"{window.Samples.Length}개 샘플을 저장했습니다 — {Path.GetFileName(path)}";
+            AppendLog($"CSV {window.Samples.Length} samples → {path}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"CSV 저장 실패: {ex.Message}";
+        }
     }
 
     private async Task SelectPresetAsync(int presetId)
@@ -919,6 +1034,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OutputOffCommand.RaiseCanExecuteChanged();
         OcpOnCommand.RaiseCanExecuteChanged();
         OcpOffCommand.RaiseCanExecuteChanged();
+        ExportCsvCommand.RaiseCanExecuteChanged();
         NudgeVoltsCommand.RaiseCanExecuteChanged();
         NudgeAmpsCommand.RaiseCanExecuteChanged();
         NudgePdCommand.RaiseCanExecuteChanged();

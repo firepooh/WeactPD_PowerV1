@@ -548,10 +548,11 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- 섹션 헤더: 제목 + 범례 + Clear/Hide -->
+                        <!-- 섹션 헤더: 제목 + 범례 + 범위·Fit·Freeze·CSV·Clear·Hide -->
                         <Grid Grid.Row="0" Margin="0,0,0,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Trend" Style="{StaticResource CardTitle}" VerticalAlignment="Center" />
@@ -604,21 +605,74 @@
                                     </Button.Style>
                                 </Button>
 
+                                <!-- Fit: Y축을 0부터가 아니라 데이터 범위에 맞춘다 (리플 관찰용) -->
+                                <Button Content="Fit" Margin="10,0,0,0" Command="{Binding ToggleFitScaleCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource RangeButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFitScale}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Margin="10,0,0,0" Padding="8,4" Command="{Binding ToggleFreezeCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                            <Setter Property="Content" Value="Freeze" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFrozen}" Value="True">
+                                                    <Setter Property="Content" Value="Live" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="{StaticResource CurrentBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{StaticResource CurrentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="CSV" Style="{StaticResource GhostButton}" Padding="8,4"
+                                        Margin="6,0,0,0" Command="{Binding ExportCsvCommand}" />
                                 <Button Content="Clear" Style="{StaticResource GhostButton}" Padding="8,4"
-                                        Margin="10,0,0,0" Command="{Binding ClearHistoryCommand}" />
+                                        Margin="6,0,0,0" Command="{Binding ClearHistoryCommand}" />
                                 <Button Content="Hide" Style="{StaticResource GhostButton}" Padding="8,4"
                                         Margin="6,0,0,0" Command="{Binding ToggleTrendCommand}" />
                             </StackPanel>
                         </Grid>
 
-                        <ctl:TrendChart Grid.Row="1" History="{Binding History}"
+                        <!-- 보이는 구간 통계 -->
+                        <TextBlock Grid.Row="1" Style="{StaticResource FooterMono}" Margin="0,0,0,8">
+                            <Run Text="V" Foreground="{StaticResource AccentBrush}" />
+                            <Run Text="{Binding Stats.Volts.Min, StringFormat={}{0:F3}, Mode=OneWay}" /><Run Text=" /" />
+                            <Run Text="{Binding Stats.Volts.Avg, StringFormat={}{0:F3}, Mode=OneWay}" /><Run Text=" /" />
+                            <Run Text="{Binding Stats.Volts.Max, StringFormat={}{0:F3}, Mode=OneWay}" />
+                            <Run Text="   A" Foreground="{StaticResource CurrentBrush}" />
+                            <Run Text="{Binding Stats.Amps.Min, StringFormat={}{0:F3}, Mode=OneWay}" /><Run Text=" /" />
+                            <Run Text="{Binding Stats.Amps.Avg, StringFormat={}{0:F3}, Mode=OneWay}" /><Run Text=" /" />
+                            <Run Text="{Binding Stats.Amps.Max, StringFormat={}{0:F3}, Mode=OneWay}" />
+                            <Run Text="   W" />
+                            <Run Text="{Binding Stats.Watts.Min, StringFormat={}{0:F2}, Mode=OneWay}" /><Run Text=" /" />
+                            <Run Text="{Binding Stats.Watts.Avg, StringFormat={}{0:F2}, Mode=OneWay}" /><Run Text=" /" />
+                            <Run Text="{Binding Stats.Watts.Max, StringFormat={}{0:F2}, Mode=OneWay}" />
+                            <Run Text="   min/avg/max ·" Foreground="{StaticResource TextMutedBrush}" />
+                            <Run Text="{Binding SampleCount, Mode=OneWay}" Foreground="{StaticResource TextMutedBrush}" />
+                            <Run Text="samples" Foreground="{StaticResource TextMutedBrush}" />
+                        </TextBlock>
+
+                        <ctl:TrendChart Grid.Row="2" Window="{Binding CurrentWindow}"
+                                        FitScale="{Binding IsFitScale}"
                                         Visibility="{Binding IsTrendVisible, Converter={StaticResource BoolToVisibility}}"
                                         VoltageBrush="{StaticResource AccentBrush}"
                                         CurrentBrush="{StaticResource CurrentBrush}"
                                         GridBrush="{StaticResource HairlineBrush}"
-                                        AxisLabelBrush="{StaticResource TextMutedBrush}" />
+                                        AxisLabelBrush="{StaticResource TextMutedBrush}"
+                                        ReadoutBackground="{StaticResource SurfaceBrush}"
+                                        ReadoutForeground="{StaticResource TextBrush}" />
 
-                        <Button Grid.Row="1" Content="Show trend graph" Style="{StaticResource GhostButton}"
+                        <Button Grid.Row="2" Content="Show trend graph" Style="{StaticResource GhostButton}"
                                 Padding="16,8" FontSize="12"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Command="{Binding ToggleTrendCommand}"

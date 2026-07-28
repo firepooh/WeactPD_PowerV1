@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
 using PdPower.App.ViewModels;
 
 namespace PdPower.App;
@@ -12,6 +13,20 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = _viewModel;
+
+        // ViewModel 이 파일 대화상자를 직접 열지 않도록 여기서 붙여준다
+        _viewModel.RequestSavePath = suggestedName =>
+        {
+            var dialog = new SaveFileDialog
+            {
+                FileName = suggestedName,
+                DefaultExt = ".csv",
+                Filter = "CSV (*.csv)|*.csv|모든 파일 (*.*)|*.*",
+                AddExtension = true,
+            };
+
+            return dialog.ShowDialog(this) == true ? dialog.FileName : null;
+        };
     }
 
     /// <summary>

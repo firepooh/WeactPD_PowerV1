@@ -124,4 +124,76 @@ public class MeasurementHistoryTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new MeasurementHistory(maxPoints));
     }
+
+    [Fact]
+    public void Version_은_저장된_경우에만_증가한다()
+    {
+        var history = new MeasurementHistory(maxPoints: 60) { Window = TimeSpan.FromMinutes(1) };
+        long start = history.Version;
+
+        history.Add(At(0));     // 저장
+        history.Add(At(0.5));   // 버림
+        history.Add(At(1.0));   // 저장
+
+        Assert.Equal(start + 2, history.Version);
+    }
+
+    [Fact]
+    public void Capture_는_창_정보까지_담는다()
+    {
+        var history = new MeasurementHistory(maxPoints: 240) { Window = TimeSpan.FromMinutes(1) };
+        for (int i = 0; i < 5; i++) history.Add(At(i, volts: i));
+
+        var window = history.Capture(T0.AddSeconds(5));
+
+        Assert.Equal(5, window.Samples.Length);
+        Assert.Equal(T0.AddSeconds(5), window.AsOf);
+        Assert.Equal(TimeSpan.FromMinutes(1), window.Window);
+        Assert.Equal(250, window.StorageInterval.TotalMilliseconds, 1);
+        Assert.False(window.IsEmpty);
+    }
+
+    [Fact]
+    public void Capture_한_장은_이후_추가에_영향받지_않는다()
+    {
+        var history = new MeasurementHistory(maxPoints: 240) { Window = TimeSpan.FromMinutes(1) };
+        history.Add(At(0));
+
+        var frozen = history.Capture(T0);
+        history.Add(At(1));
+
+        // 정지 화면이 뒤에서 들어온 데이터로 흔들리면 안 된다
+        Assert.Single(frozen.Samples);
+    }
+
+    [Fact]
+    public void 통계는_창_안의_최소_평균_최대를_준다()
+    {
+        var history = new MeasurementHistory(maxPoints: 240) { Window = TimeSpan.FromMinutes(1) };
+        history.Add(new MeasurementSample(T0, 10, 1.0));
+        history.Add(new MeasurementSample(T0.AddSeconds(1), 12, 2.0));
+        history.Add(new MeasurementSample(T0.AddSeconds(2), 14, 3.0));
+
+        var stats = MeasurementStats.From(history.Capture(T0.AddSeconds(2)));
+
+        Assert.Equal(10, stats.Volts.Min);
+        Assert.Equal(12, stats.Volts.Avg);
+        Assert.Equal(14, stats.Volts.Max);
+        Assert.Equal(1.0, stats.Amps.Min);
+        Assert.Equal(3.0, stats.Amps.Max);
+
+        // 전력은 샘플별 V×A 의 통계여야 한다. (10 + 24 + 42) / 3 = 25.333 —
+        // 평균전압 × 평균전류 = 12 × 2 = 24 가 아니다.
+        Assert.Equal(10, stats.Watts.Min);
+        Assert.Equal(42, stats.Watts.Max);
+        Assert.Equal(25.333, stats.Watts.Avg, 3);
+    }
+
+    [Fact]
+    public void 빈_창의_통계는_전부_0()
+    {
+        var stats = MeasurementStats.From(MeasurementWindow.Empty);
+        Assert.Equal(0, stats.Volts.Max);
+        Assert.Equal(0, stats.Watts.Avg);
+    }
 }
