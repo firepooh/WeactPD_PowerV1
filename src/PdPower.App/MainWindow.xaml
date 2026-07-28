@@ -586,10 +586,11 @@
                     </Grid>
                 </Border>
 
-                <!-- Setup -->
+                <!-- Setup — 항목이 늘어나면 카드 높이를 넘으므로 스크롤로 감싼다 -->
                 <Border Style="{StaticResource HairlineCard}" Padding="16,14"
                         Visibility="{Binding IsSetupView, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,4,0">
                         <TextBlock Text="Setup" Style="{StaticResource CardTitle}" Margin="0,0,0,12" />
 
                         <!-- 설정 한 줄: 설명(좌) + 제어(우) -->
@@ -606,12 +607,10 @@
                                     <TextBlock Text="OCP" Style="{StaticResource MicroMono}" Margin="8,0,0,0"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
+                                <!-- 휘발성이라는 설명은 바로 아래 저장 섹션이 하므로 여기서 반복하지 않는다 -->
                                 <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
                                            Foreground="{StaticResource TextTertiaryBrush}"
-                                           Text="임계값은 Current limit 설정값이며, 초과 후 약 200 ms 뒤 출력이 차단됩니다. 끄면 대신 CC로 물려 출력이 유지됩니다." />
-                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Text="휘발성 설정 — 전원 재인가 후에도 유지하려면 장치에 저장해야 합니다." />
+                                           Text="임계값은 Current limit 설정값. 초과 후 약 200 ms 뒤 차단되고, 끄면 CC로 물려 출력이 유지됩니다." />
                             </StackPanel>
 
                             <Border Grid.Column="1" Style="{StaticResource StepperPill}" Width="132"
@@ -677,7 +676,90 @@
                                 </Grid>
                             </Border>
                         </Grid>
+
+                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,16" />
+
+                        <!-- 설정 저장 (SYSTEM_CONFIG_SAVE 0x44) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Save to device" FontSize="13"
+                                               Foreground="{StaticResource TextBrush}" />
+                                    <Border CornerRadius="4" Padding="5,1" Margin="8,0,0,0"
+                                            Background="{StaticResource CurrentBrush}"
+                                            VerticalAlignment="Center"
+                                            Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="UNSAVED" FontFamily="{StaticResource MonoFont}"
+                                                   FontSize="9" FontWeight="Bold" Foreground="White" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           Text="아래 6개 항목의 현재 값이 한 번에 플래시로 저장됩니다. 개별 선택은 불가합니다." />
+
+                                <!-- 저장 대상: 프로토콜 SYSTEM_CONFIG_SAVE 주석에 명시된 6가지.
+                                     한글은 모노 폰트에서도 폭이 달라 공백 정렬이 안 되므로 Grid 로 맞춘다. -->
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.Resources>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontSize" Value="11" />
+                                            <Setter Property="Margin" Value="0,0,16,2" />
+                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        </Style>
+                                    </Grid.Resources>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="활성 프리셋 번호" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="프리셋 전압 / 전류" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="과전류 보호 (OCP)" />
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="출력 오프셋 보정" />
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="LCD 밝기" />
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="PD 요청 전압" />
+
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="OUTPUT_ID" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="OUTPUT_DATA" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="OUTPUT_OCP_EN" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="OUTPUT_OFFSET_EN" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="BRIGHTNESS" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="INPUT_PD_VOLTAGE" FontFamily="{StaticResource MonoFont}" />
+
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="0x03" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="0x04" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="0x06" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Grid.Row="3" Grid.Column="2" Text="0x07" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Grid.Row="4" Grid.Column="2" Text="0x08" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Grid.Row="5" Grid.Column="2" Text="0x0A" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource TextMutedBrush}" />
+                                </Grid>
+
+                                <TextBlock Margin="0,10,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Text="출력 on/off 와 방전 설정은 저장 대상이 아니라 전원 재인가 시 항상 초기화됩니다. UNSAVED 는 연결 이후 이 앱이 만든 변경만 추적합니다 — 플래시를 읽는 명령이 없어 장치에서 직접 바꾼 값은 알 수 없습니다." />
+                            </StackPanel>
+
+                            <Button Grid.Column="1" Content="Save" VerticalAlignment="Top" Width="132"
+                                    Padding="0,7" Style="{StaticResource AccentButton}"
+                                    AutomationProperties.AutomationId="SaveConfigButton"
+                                    Command="{Binding SaveConfigCommand}" />
+                        </Grid>
                     </StackPanel>
+                    </ScrollViewer>
                 </Border>
 
                 <!-- Log -->

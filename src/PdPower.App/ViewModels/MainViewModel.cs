@@ -190,6 +190,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set { if (SetField(ref _isOcpEnabled, value)) RaiseCommandStates(); }
     }
 
+    // ── Setup: 설정 저장 ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// 앱이 휘발성 항목을 건드린 뒤 아직 <c>SYSTEM_CONFIG_SAVE</c>(0x44)를 보내지 않은 상태.
+    /// 장치 플래시를 읽는 명령이 없으므로 <b>"연결 이후 앱이 만든 변경"</b>만 추적한다 —
+    /// 장치 노브로 바꾼 값이나 연결 전 상태는 알 수 없다.
+    /// </summary>
+    private bool _hasUnsavedChanges;
+    public bool HasUnsavedChanges { get => _hasUnsavedChanges; private set => SetField(ref _hasUnsavedChanges, value); }
+
     // ── 상태 메시지 / 로그 ───────────────────────────────────────────────
 
     private string _statusMessage = "포트를 선택하고 연결하세요.";
@@ -303,6 +313,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsConnected = false;
         OutputEnabled = false;
         IsOcpEnabled = false;
+        HasUnsavedChanges = false;
         MeasuredVolts = MeasuredAmps = InputVolts = 0;
         Regulation = OutputRegulation.ConstantVoltage;
         DeviceName = FirmwareVersion = SerialNumber = "—";
@@ -328,6 +339,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SetAmps = active.Amps;
 
         IsOcpEnabled = await _device.ReadOcpEnabledAsync().ConfigureAwait(true);
+
+        // 방금 읽어온 값이 곧 장치의 현재 상태 — 앱이 바꾼 건 아직 없다
+        HasUnsavedChanges = false;
     }
 
     private async Task PollAsync()
@@ -381,6 +395,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         SetVolts = Presets[presetId].Volts;
         SetAmps = Presets[presetId].Amps;
+        HasUnsavedChanges = true;
         StatusMessage = $"M{presetId} 적용 — {SetVolts:F3} V / {SetAmps:F3} A";
     }
 
@@ -395,6 +410,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SetVolts = volts;
         SetAmps = amps;
         Presets[ActivePresetId].Update(volts, amps, isActive: true);
+        HasUnsavedChanges = true;
         StatusMessage = $"M{ActivePresetId} → {volts:F3} V / {amps:F3} A (저장하지 않으면 휘발)";
     }
 
@@ -405,6 +421,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         await _device.SetOcpEnabledAsync(enabled).ConfigureAwait(true);
         IsOcpEnabled = await _device.ReadOcpEnabledAsync().ConfigureAwait(true);
+        HasUnsavedChanges = true;
         StatusMessage = IsOcpEnabled
             ? $"OCP 켜짐 — {SetAmps:F3} A 초과 시 약 200 ms 후 출력 차단"
             : "OCP 꺼짐 — 전류 제한에 걸리면 CC 동작(출력 유지)";
@@ -423,6 +440,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_device is null) return;
 
         await _device.SetPdRequestVoltageAsync(SelectedPdVoltage).ConfigureAwait(true);
+        HasUnsavedChanges = true;
         StatusMessage = $"PD 입력 {SelectedPdVoltage} V 요청 — 출력 OFF & 출력전압 5 V 미만일 때만 반영됩니다.";
     }
 
@@ -431,7 +449,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_device is null) return;
 
         await _device.SaveConfigAsync().ConfigureAwait(true);
-        StatusMessage = "현재 설정을 장치에 저장했습니다.";
+        HasUnsavedChanges = false;
+        StatusMessage = "현재 설정을 장치 플래시에 저장했습니다.";
     }
 
     /// <summary>

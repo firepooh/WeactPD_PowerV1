@@ -55,10 +55,32 @@ OUTPUT_DISPLAY, OCP_EN, OFFSET_EN, BRIGHTNESS, INPUT_STATE)은 전부 실장비 
 | OUTPUT_DISCHARGE_EN | `0x09` | `x` | 방전 기능 |
 | INPUT_PD_VOLTAGE | `0x0A` | `v_l8, v_h8` | 단위 0.1 V, 8 V 이상. 출력 OFF & 출력전압 < 5 V 조건에서만 적용 |
 | SYSTEM_RESET | `0x40` | — | |
-| SYSTEM_CONFIG_SAVE | `0x44` | — | 휘발성 설정(ID/DATA/OCP/OFFSET/밝기/PD전압)을 플래시 저장 |
+| SYSTEM_CONFIG_SAVE | `0x44` | — | 아래 6가지를 한 번에 플래시 저장 (개별 선택 불가) |
 | SYSTEM_FACTORY_RESET | `0x45` | — | |
 
-> 쓰기 명령 페이로드 값들은 **휘발성(Volatile)** — 전원 재인가 시 소실. 유지하려면 `SYSTEM_CONFIG_SAVE`(0x44) 필요 (GUI의 "Save" 버튼).
+> 쓰기 명령 페이로드 값들은 **휘발성(Volatile)** — 전원 재인가 시 소실. 유지하려면 `SYSTEM_CONFIG_SAVE`(0x44) 필요 (GUI Setup 화면의 "Save" 버튼).
+
+### SYSTEM_CONFIG_SAVE(`0x44`) 저장 대상
+
+| 항목 | 명령 | 코드 |
+|---|---|---|
+| 활성 프리셋 번호 | `OUTPUT_ID` | `0x03` |
+| 프리셋 전압 / 전류 | `OUTPUT_DATA` | `0x04` |
+| 과전류 보호 (OCP) | `OUTPUT_OCP_EN` | `0x06` |
+| 출력 오프셋 보정 | `OUTPUT_OFFSET_EN` | `0x07` |
+| LCD 밝기 | `BRIGHTNESS` | `0x08` |
+| PD 요청 전압 | `INPUT_PD_VOLTAGE` | `0x0A` |
+
+**저장 대상이 아닌 것:**
+
+- `OUTPUT_EN`(`0x02`) — 출력 on/off. 전원 재인가 시 항상 OFF로 시작한다(안전 동작).
+- `OUTPUT_DISCHARGE_EN`(`0x09`) — 휘발성인데 저장 목록에도 없어서 **영구 설정이 불가능하다.**
+  매번 연결 후 다시 보내야 한다.
+- `SYSTEM_LCD_PANEL_TYPE`(`0x46`) — 반대 경우. **비휘발성**이라 `0x44` 없이 즉시 기록된다.
+
+플래시에 저장된 값을 되읽는 명령은 없다. `READ_OUTPUT_DATA` 등은 항상 현재 유효값(RAM)을 준다.
+그래서 GUI 의 `UNSAVED` 표시는 **연결 이후 앱이 만든 변경만** 추적한다 — 장치 노브로 바꾼 값이나
+연결 전 상태는 알 수 없다.
 
 ### 2.3 읽기 명령 (PC → 장치 → 응답)
 
@@ -213,8 +235,8 @@ dotnet run --project src/PdPower.App
   - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
   - [x] 듀얼축 Trend 차트 + 오토스케일, Clear/Hide
   - [x] Log 화면 (원시 프레임 트레이스 토글)
-  - [x] Setup 화면 — OCP on/off (되읽기 확인)
-  - [ ] Setup 나머지: 설정 저장(`0x44`), 오프셋 보정, 밝기, 방전
+  - [x] Setup 화면 — OCP on/off (되읽기 확인), 설정 저장(`0x44`) + 미저장 표시
+  - [ ] Setup 나머지: 오프셋 보정, 밝기, 방전
   - [ ] 미연결 시 CV 배지가 뜨는 문제 (기본값이 `CV` 라 장치 없이도 표시됨)
   - [ ] 레일 56 px 아이콘 모드 접힘
   - [ ] 프리셋 더블클릭 인라인 편집
