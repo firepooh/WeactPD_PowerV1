@@ -35,7 +35,16 @@ public sealed class TrendChart : FrameworkElement
 
     private static readonly Typeface LabelTypeface = new("Consolas");
 
+    /// <summary>휠 한 칸당 범위 배율.</summary>
+    private const double ZoomStep = 1.25;
+
+    /// <summary>수동 범위의 하한·상한. 장치 사양(20 V / 3 A)보다 약간 넉넉하게 둔다.</summary>
+    private static readonly (double MinSpan, double MaxSpan, double Ceiling) VoltageLimits = (0.002, 24.0, 24.0);
+    private static readonly (double MinSpan, double MaxSpan, double Ceiling) CurrentLimits = (0.001, 3.6, 3.6);
+
     private double? _cursorX;
+    private (double Min, double Max) _manualVoltage = (0, 20);
+    private (double Min, double Max) _manualCurrent = (0, 3);
 
     public TrendChart()
     {
@@ -47,9 +56,15 @@ public sealed class TrendChart : FrameworkElement
         nameof(Window), typeof(MeasurementWindow), typeof(TrendChart),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty FitScaleProperty = DependencyProperty.Register(
-        nameof(FitScale), typeof(bool), typeof(TrendChart),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty ScaleModeProperty = DependencyProperty.Register(
+        nameof(ScaleMode), typeof(YScaleMode), typeof(TrendChart),
+        new FrameworkPropertyMetadata(YScaleMode.Auto,
+            FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+    public static readonly DependencyProperty IsFrozenProperty = DependencyProperty.Register(
+        nameof(IsFrozen), typeof(bool), typeof(TrendChart),
+        new FrameworkPropertyMetadata(false,
+            FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
     public static readonly DependencyProperty VoltageBrushProperty = DependencyProperty.Register(
         nameof(VoltageBrush), typeof(Brush), typeof(TrendChart),
@@ -81,10 +96,16 @@ public sealed class TrendChart : FrameworkElement
         set => SetValue(WindowProperty, value);
     }
 
-    public bool FitScale
+    public YScaleMode ScaleMode
     {
-        get => (bool)GetValue(FitScaleProperty);
-        set => SetValue(FitScaleProperty, value);
+        get => (YScaleMode)GetValue(ScaleModeProperty);
+        set => SetValue(ScaleModeProperty, value);
+    }
+
+    public bool IsFrozen
+    {
+        get => (bool)GetValue(IsFrozenProperty);
+        set => SetValue(IsFrozenProperty, value);
     }
 
     public Brush VoltageBrush
@@ -139,32 +160,92 @@ public sealed class TrendChart : FrameworkElement
         InvalidateVisual();
     }
 
+    /// <summary>그래프를 클릭하면 정지/재생을 토글한다 (별도 버튼 없음).</summary>
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonDown(e);
+        IsFrozen = !IsFrozen;
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// 휠로 Y축 범위를 조절한다. 플롯 왼쪽 절반에서는 전압축, 오른쪽 절반에서는 전류축이
+    /// 대상이고, 커서가 가리키는 값을 고정점으로 확대·축소한다.
+    /// </summary>
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        base.OnMouseWheel(e);
+
+        var plot = ComputePlot();
+        if (plot.Width <= 0 || plot.Height <= 0) return;
+
+        var position = e.GetPosition(this);
+        bool voltageSide = position.X < plot.X + plot.Width / 2;
+
+        // Auto·Fit 에서 넘어올 때는 지금 보이는 범위를 그대로 물려받아야 튀지 않는다
+        if (ScaleMode != YScaleMode.Manual)
+        {
+            var samples = (Window ?? MeasurementWindow.Empty).Samples;
+            _manualVoltage = ComputeAutoOrFit(samples, s => s.Volts, cap: 20.0, fallback: 5.0);
+            _manualCurrent = ComputeAutoOrFit(samples, s => s.Amps, cap: 3.0, fallback: 0.5);
+            ScaleMode = YScaleMode.Manual;
+        }
+
+        var range = voltageSide ? _manualVoltage : _manualCurrent;
+        var limits = voltageSide ? VoltageLimits : CurrentLimits;
+
+        // 휠 위 = 확대 = 범위를 좁힌다
+        double factor = e.Delta > 0 ? 1 / ZoomStep : ZoomStep;
+        double span = Math.Clamp((range.Max - range.Min) * factor, limits.MinSpan, limits.MaxSpan);
+
+        double ratio = Math.Clamp((plot.Bottom - position.Y) / plot.Height, 0, 1);
+        double anchor = range.Min + (range.Max - range.Min) * ratio;
+
+        double min = Math.Clamp(anchor - span * ratio, 0, limits.Ceiling - span);
+        var zoomed = (min, min + span);
+
+        if (voltageSide) _manualVoltage = zoomed;
+        else _manualCurrent = zoomed;
+
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
     /// <summary>빈 영역에서도 마우스를 받으려면 배경을 칠해야 한다(투명이라도).</summary>
     protected override HitTestResult? HitTestCore(PointHitTestParameters p)
         => new PointHitTestResult(this, p.HitPoint);
 
     // ── 렌더 ─────────────────────────────────────────────────────────────
 
-    protected override void OnRender(DrawingContext dc)
+    /// <summary>플롯 사각형. 렌더와 휠 처리가 같은 값을 써야 한다.</summary>
+    private Rect ComputePlot()
     {
         double bottomPadding = BandHeight + BandGap + LabelHeight;
         double width = ActualWidth;
         double height = ActualHeight;
-        if (width <= LeftAxisWidth + RightAxisWidth + 8 || height <= TopPadding + bottomPadding + 8) return;
 
-        var plot = new Rect(
+        if (width <= LeftAxisWidth + RightAxisWidth + 8 || height <= TopPadding + bottomPadding + 8)
+            return Rect.Empty;
+
+        return new Rect(
             LeftAxisWidth,
             TopPadding,
             width - LeftAxisWidth - RightAxisWidth,
             height - TopPadding - bottomPadding);
+    }
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        var plot = ComputePlot();
+        if (plot.IsEmpty) return;
 
         var window = Window ?? MeasurementWindow.Empty;
         var samples = window.Samples;
         var asOf = window.IsEmpty ? DateTime.Now : window.AsOf;
         var span = window.Window;
 
-        var voltageAxis = ResolveAxis(samples, s => s.Volts, cap: 20.0, fallback: 5.0);
-        var currentAxis = ResolveAxis(samples, s => s.Amps, cap: 3.0, fallback: 0.5);
+        var voltageAxis = ResolveAxis(samples, s => s.Volts, cap: 20.0, fallback: 5.0, isVoltage: true);
+        var currentAxis = ResolveAxis(samples, s => s.Amps, cap: 3.0, fallback: 0.5, isVoltage: false);
 
         DrawGrid(dc, plot, voltageAxis, currentAxis);
 
@@ -184,20 +265,52 @@ public sealed class TrendChart : FrameworkElement
         }
 
         DrawTimeLabels(dc, plot, asOf, span);
+        DrawBadges(dc, plot);
 
         if (_cursorX is { } cursorX && samples.Length > 0)
             DrawCursor(dc, plot, samples, asOf, span, cursorX, voltageAxis, currentAxis);
     }
 
-    /// <summary>축 범위. Fit 모드에서는 데이터 최소~최대에 여유를 준다.</summary>
+    /// <summary>
+    /// 정지·수동 스케일 표시. Freeze 버튼을 없앤 대신 상태를 여기서 알려준다 —
+    /// 클릭으로 토글되므로 화면에 표시가 없으면 정지된 줄 모른다.
+    /// </summary>
+    private void DrawBadges(DrawingContext dc, Rect plot)
+    {
+        double x = plot.X + 6;
+
+        if (IsFrozen)
+        {
+            var text = new FormattedText("FROZEN · click to resume", CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, LabelTypeface, 10, CurrentBrush,
+                VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            dc.DrawText(text, new Point(x, plot.Y + 4));
+            x += text.Width + 10;
+        }
+
+        if (ScaleMode == YScaleMode.Manual)
+        {
+            var text = FormatText("MANUAL Y · wheel over each side", 10);
+            dc.DrawText(text, new Point(x, plot.Y + 4));
+        }
+    }
+
+    /// <summary>축 범위. Manual 이면 휠로 잡아둔 값, 아니면 Auto/Fit 계산값.</summary>
     private (double Min, double Max) ResolveAxis(
+        MeasurementSample[] samples, Func<MeasurementSample, double> selector,
+        double cap, double fallback, bool isVoltage)
+        => ScaleMode == YScaleMode.Manual
+            ? (isVoltage ? _manualVoltage : _manualCurrent)
+            : ComputeAutoOrFit(samples, selector, cap, fallback);
+
+    /// <summary>Auto 는 0부터 좋은 상한까지, Fit 은 데이터 최소~최대에 여유를 준다.</summary>
+    private (double Min, double Max) ComputeAutoOrFit(
         MeasurementSample[] samples, Func<MeasurementSample, double> selector, double cap, double fallback)
     {
         if (samples.Length == 0) return (0, fallback);
 
         double peak = samples.Max(selector);
-
-        if (!FitScale) return (0, NiceCeiling(peak, cap, fallback));
+        if (ScaleMode != YScaleMode.Fit) return (0, NiceCeiling(peak, cap, fallback));
 
         double low = samples.Min(selector);
         double margin = Math.Max((peak - low) * 0.15, Math.Max(peak, 1e-3) * 0.002);
@@ -493,7 +606,13 @@ public sealed class TrendChart : FrameworkElement
     /// </summary>
     private static string FormatTick(double value, double step)
     {
-        int decimals = step <= 0 ? 1 : Math.Clamp((int)Math.Ceiling(-Math.Log10(step)), 0, 4);
+        if (step <= 0) return value.ToString("F1", CultureInfo.InvariantCulture);
+
+        int decimals = Math.Clamp((int)Math.Ceiling(-Math.Log10(step)), 0, 4);
+
+        // 간격이 1~2 사이면 정수 표기가 7 / 8 / 10 / 11 / 12 / 14 처럼 들쭉날쭉해진다
+        if (decimals == 0 && step < 2) decimals = 1;
+
         return value.ToString("F" + decimals, CultureInfo.InvariantCulture);
     }
 }

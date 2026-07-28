@@ -605,12 +605,24 @@
                                     </Button.Style>
                                 </Button>
 
-                                <!-- Fit: Y축을 0부터가 아니라 데이터 범위에 맞춘다 (리플 관찰용) -->
-                                <Button Content="Fit" Margin="10,0,0,0" Command="{Binding ToggleFitScaleCommand}">
+                                <!-- Y축 방식. 휠로 조절하면 Manual 로 넘어가 둘 다 꺼진다 -->
+                                <Button Content="Auto" Margin="10,0,0,0" Command="{Binding SetAutoScaleCommand}">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource RangeButton}">
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsFitScale}" Value="True">
+                                                <DataTrigger Binding="{Binding YScaleMode}" Value="Auto">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="Fit" Command="{Binding SetFitScaleCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource RangeButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding YScaleMode}" Value="Fit">
                                                     <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
                                                     <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
                                                 </DataTrigger>
@@ -619,23 +631,8 @@
                                     </Button.Style>
                                 </Button>
 
-                                <Button Margin="10,0,0,0" Padding="8,4" Command="{Binding ToggleFreezeCommand}">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
-                                            <Setter Property="Content" Value="Freeze" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsFrozen}" Value="True">
-                                                    <Setter Property="Content" Value="Live" />
-                                                    <Setter Property="Foreground" Value="White" />
-                                                    <Setter Property="Background" Value="{StaticResource CurrentBrush}" />
-                                                    <Setter Property="BorderBrush" Value="{StaticResource CurrentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
                                 <Button Content="CSV" Style="{StaticResource GhostButton}" Padding="8,4"
-                                        Margin="6,0,0,0" Command="{Binding ExportCsvCommand}" />
+                                        Margin="10,0,0,0" Command="{Binding ExportCsvCommand}" />
                                 <Button Content="Clear" Style="{StaticResource GhostButton}" Padding="8,4"
                                         Margin="6,0,0,0" Command="{Binding ClearHistoryCommand}" />
                                 <Button Content="Hide" Style="{StaticResource GhostButton}" Padding="8,4"
@@ -662,8 +659,10 @@
                             <Run Text="samples" Foreground="{StaticResource TextMutedBrush}" />
                         </TextBlock>
 
+                        <!-- 클릭으로 정지, 축 위 휠로 스케일 → 양방향 바인딩 -->
                         <ctl:TrendChart Grid.Row="2" Window="{Binding CurrentWindow}"
-                                        FitScale="{Binding IsFitScale}"
+                                        ScaleMode="{Binding YScaleMode, Mode=TwoWay}"
+                                        IsFrozen="{Binding IsFrozen, Mode=TwoWay}"
                                         Visibility="{Binding IsTrendVisible, Converter={StaticResource BoolToVisibility}}"
                                         VoltageBrush="{StaticResource AccentBrush}"
                                         CurrentBrush="{StaticResource CurrentBrush}"

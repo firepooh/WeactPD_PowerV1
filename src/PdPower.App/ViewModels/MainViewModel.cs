@@ -87,8 +87,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveConfigCommand = new AsyncRelayCommand(_ => SaveConfigAsync(), _ => IsConnected, ReportError);
         ClearHistoryCommand = new RelayCommand(_ => { History.Clear(); RefreshWindow(force: true); });
         SelectRangeCommand = new RelayCommand(p => SelectRange(ToInt(p)));
-        ToggleFreezeCommand = new RelayCommand(_ => IsFrozen = !IsFrozen);
-        ToggleFitScaleCommand = new RelayCommand(_ => IsFitScale = !IsFitScale);
+        SetAutoScaleCommand = new RelayCommand(_ => YScaleMode = YScaleMode.Auto);
+        SetFitScaleCommand = new RelayCommand(_ => YScaleMode = YScaleMode.Fit);
         ExportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => SampleCount > 0);
         NudgePollIntervalCommand = new RelayCommand(p => PollIntervalMs += ToInt(p) * PollIntervalStepMs);
         NudgeStatusDivisorCommand = new RelayCommand(p => StatusDivisor += ToInt(p));
@@ -300,28 +300,44 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public int SampleCount => CurrentWindow.Samples.Length;
 
-    /// <summary>정지 중에는 라이브 갱신을 멈추고 잘라둔 장을 유지한다.</summary>
+    /// <summary>
+    /// 정지 중에는 라이브 갱신을 멈추고 잘라둔 장을 유지한다.
+    /// 그래프를 클릭하면 토글되므로 차트가 직접 쓸 수 있게 public setter 를 둔다.
+    /// </summary>
     private bool _isFrozen;
     public bool IsFrozen
     {
         get => _isFrozen;
-        private set
+        set
         {
             if (!SetField(ref _isFrozen, value)) return;
             RaiseCommandStates();
             if (!value) RefreshWindow(force: true);
             StatusMessage = value
-                ? $"그래프 정지 — {SampleCount}개 샘플을 붙잡았습니다. 수집은 계속됩니다."
+                ? $"그래프 정지 — {SampleCount}개 샘플을 붙잡았습니다. 다시 클릭하면 재생됩니다."
                 : "그래프 재생.";
         }
     }
 
     /// <summary>
-    /// Y축을 0부터가 아니라 데이터 범위에 맞춘다. 12.00 V 부근 리플처럼
-    /// 0~20 V 축에서는 직선으로만 보이는 것을 관찰할 때 필요하다.
+    /// Y축 범위 방식. 축 위에서 휠을 돌리면 차트가 <see cref="YScaleMode.Manual"/> 로 바꿔
+    /// 되돌려 보내므로 setter 가 public 이다.
     /// </summary>
-    private bool _isFitScale;
-    public bool IsFitScale { get => _isFitScale; private set => SetField(ref _isFitScale, value); }
+    private YScaleMode _yScaleMode = YScaleMode.Auto;
+    public YScaleMode YScaleMode
+    {
+        get => _yScaleMode;
+        set
+        {
+            if (!SetField(ref _yScaleMode, value)) return;
+            StatusMessage = value switch
+            {
+                YScaleMode.Auto => "Y축 자동 — 0부터 피크까지.",
+                YScaleMode.Fit => "Y축 데이터 범위에 맞춤.",
+                _ => "Y축 수동 — 전압/전류 쪽에서 휠로 조절, Auto·Fit 으로 복귀.",
+            };
+        }
+    }
 
     /// <summary>새 데이터가 들어왔을 때만 잘라낸다 — 매 프레임 복사를 피한다.</summary>
     private void RefreshWindow(bool force = false)
@@ -513,8 +529,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand SaveConfigCommand { get; }
     public RelayCommand ClearHistoryCommand { get; }
     public RelayCommand SelectRangeCommand { get; }
-    public RelayCommand ToggleFreezeCommand { get; }
-    public RelayCommand ToggleFitScaleCommand { get; }
+    public RelayCommand SetAutoScaleCommand { get; }
+    public RelayCommand SetFitScaleCommand { get; }
     public RelayCommand ExportCsvCommand { get; }
     public RelayCommand NudgePollIntervalCommand { get; }
     public RelayCommand NudgeStatusDivisorCommand { get; }
