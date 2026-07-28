@@ -677,7 +677,41 @@
                             </Border>
                         </Grid>
 
-                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,16" />
+                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,14" />
+
+                        <!-- LCD 밝기 (BRIGHTNESS 0x08 / 0x88) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="LCD brightness" FontSize="13"
+                                               Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="1–100" Style="{StaticResource MicroMono}" Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           Text="트랙을 클릭하거나 손잡이를 끌어 조절합니다. 끌기가 멈춘 뒤 장치에 한 번만 기록됩니다." />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Slider Width="132" Style="{StaticResource FlatSlider}"
+                                        AutomationProperties.AutomationId="BrightnessSlider"
+                                        Minimum="1" Maximum="100"
+                                        IsEnabled="{Binding IsConnected}"
+                                        Value="{Binding BrightnessPercent, Mode=TwoWay}" />
+                                <TextBlock Width="44" Margin="10,0,0,0" TextAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{StaticResource MonoFont}" FontSize="13"
+                                           Text="{Binding BrightnessPercent, StringFormat={}{0}%}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,14" />
 
                         <!-- 설정 저장 (SYSTEM_CONFIG_SAVE 0x44) -->
                         <Grid>

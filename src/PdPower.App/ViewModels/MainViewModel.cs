@@ -20,10 +20,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
 
+    /// <summary>슬라이더 드래그가 멈춘 뒤 실제로 밝기를 쓰기까지 기다리는 시간.</summary>
+    private static readonly TimeSpan BrightnessWriteDelay = TimeSpan.FromMilliseconds(250);
+
     private readonly DispatcherTimer _pollTimer;
+    private readonly DispatcherTimer _brightnessDebounce;
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private PdPowerDevice? _device;
     private bool _polling;
+    private bool _suppressBrightnessWrite;
 
     public MainViewModel()
     {
@@ -48,6 +53,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _pollTimer = new DispatcherTimer { Interval = PollInterval };
         _pollTimer.Tick += async (_, _) => await PollAsync().ConfigureAwait(true);
+
+        _brightnessDebounce = new DispatcherTimer { Interval = BrightnessWriteDelay };
+        _brightnessDebounce.Tick += async (_, _) =>
+        {
+            _brightnessDebounce.Stop();
+            try
+            {
+                await ApplyBrightnessAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                ReportError(ex);
+            }
+        };
 
         RefreshPorts();
     }
@@ -190,6 +209,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set { if (SetField(ref _isOcpEnabled, value)) RaiseCommandStates(); }
     }
 
+    // ── Setup: LCD 밝기 ──────────────────────────────────────────────────
+
+    public const int MinBrightness = 1;
+    public const int MaxBrightness = 100;
+
+    /// <summary>
+    /// LCD 밝기(%). 슬라이더를 끌면 값이 연속으로 바뀌므로 <see cref="BrightnessWriteDelay"/>
+    /// 만큼 모아서 한 번만 장치에 쓴다.
+    /// </summary>
+    private int _brightnessPercent = 50;
+    public int BrightnessPercent
+    {
+        get => _brightnessPercent;
+        set
+        {
+            int clamped = Math.Clamp(value, MinBrightness, MaxBrightness);
+            if (!SetField(ref _brightnessPercent, clamped)) return;
+
+            // 장치에서 읽어와 채우는 중이면 되쓰지 않는다
+            if (_suppressBrightnessWrite || _device is null) return;
+
+            _brightnessDebounce.Stop();
+            _brightnessDebounce.Start();
+        }
+    }
+
     // ── Setup: 설정 저장 ─────────────────────────────────────────────────
 
     /// <summary>
@@ -307,6 +352,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Disconnect()
     {
         _pollTimer.Stop();
+        _brightnessDebounce.Stop();
         _device?.Dispose();
         _device = null;
 
@@ -339,6 +385,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SetAmps = active.Amps;
 
         IsOcpEnabled = await _device.ReadOcpEnabledAsync().ConfigureAwait(true);
+        await LoadBrightnessAsync().ConfigureAwait(true);
 
         // 방금 읽어온 값이 곧 장치의 현재 상태 — 앱이 바꾼 건 아직 없다
         HasUnsavedChanges = false;
@@ -412,6 +459,34 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Presets[ActivePresetId].Update(volts, amps, isActive: true);
         HasUnsavedChanges = true;
         StatusMessage = $"M{ActivePresetId} → {volts:F3} V / {amps:F3} A (저장하지 않으면 휘발)";
+    }
+
+    /// <summary>디바운스가 끝난 뒤 실제 밝기 쓰기. 되읽은 값으로 슬라이더를 맞춘다.</summary>
+    private async Task ApplyBrightnessAsync()
+    {
+        if (_device is null) return;
+
+        await _device.SetBrightnessAsync(BrightnessPercent).ConfigureAwait(true);
+        await LoadBrightnessAsync().ConfigureAwait(true);
+        HasUnsavedChanges = true;
+        StatusMessage = $"LCD 밝기 {BrightnessPercent}%";
+    }
+
+    /// <summary>장치 값으로 슬라이더를 채운다. 되쓰기 루프가 생기지 않게 억제 플래그를 세운다.</summary>
+    private async Task LoadBrightnessAsync()
+    {
+        if (_device is null) return;
+
+        int percent = await _device.ReadBrightnessAsync().ConfigureAwait(true);
+        _suppressBrightnessWrite = true;
+        try
+        {
+            BrightnessPercent = percent;
+        }
+        finally
+        {
+            _suppressBrightnessWrite = false;
+        }
     }
 
     /// <summary>OCP를 바꾸고 장치에서 되읽어 확인한다 — 쓰기만 하면 실제 반영 여부를 알 수 없다.</summary>

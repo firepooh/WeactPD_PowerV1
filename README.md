@@ -213,6 +213,9 @@ dotnet run --project src/PdPower.App
 - 요청 직전에 수신 버퍼를 비워(`DiscardInBuffer`) 프레임 동기를 잡는다.
 - `PdPowerDevice.FrameExchanged` 이벤트는 **스레드 풀에서 발생**한다. UI 컬렉션을 갱신하려면
   구독자가 디스패처로 마샬링해야 한다 (안 하면 `NotSupportedException`).
+- 슬라이더처럼 값이 연속으로 바뀌는 컨트롤은 **디바운스가 필수**다. 밝기를 그대로 바인딩하면
+  드래그 한 번에 수백 개 프레임이 나간다. `MainViewModel` 은 250 ms 모아서 한 번만 쓴다.
+  장치에서 되읽어 슬라이더를 맞출 때는 억제 플래그로 쓰기 루프를 끊는다.
 - `READ_INPUT_STATE`(0x8A)는 PD Power Mini V1 펌웨어 **v1.0.2.0 이상**에서만 지원 —
   실패를 정상 흐름으로 처리한다.
 
@@ -235,8 +238,8 @@ dotnet run --project src/PdPower.App
   - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
   - [x] 듀얼축 Trend 차트 + 오토스케일, Clear/Hide
   - [x] Log 화면 (원시 프레임 트레이스 토글)
-  - [x] Setup 화면 — OCP on/off (되읽기 확인), 설정 저장(`0x44`) + 미저장 표시
-  - [ ] Setup 나머지: 오프셋 보정, 밝기, 방전
+  - [x] Setup 화면 — OCP on/off, LCD 밝기 슬라이더, 설정 저장(`0x44`) + 미저장 표시
+  - [ ] Setup 나머지: 오프셋 보정, 방전(읽기 명령 없음에 유의)
   - [ ] 미연결 시 CV 배지가 뜨는 문제 (기본값이 `CV` 라 장치 없이도 표시됨)
   - [ ] 레일 56 px 아이콘 모드 접힘
   - [ ] 프리셋 더블클릭 인라인 편집

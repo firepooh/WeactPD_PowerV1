@@ -402,6 +402,89 @@
         </Setter>
     </Style>
 
+    <!-- ══ Slider: 채워진 구간 = 액센트, 나머지 = 가라앉은 면 ══ -->
+
+    <!-- 채워진 쪽 트랙. Track 의 DecreaseRepeatButton 이 좌측을 차지하므로 이걸 막대로 쓴다 -->
+    <Style x:Key="SliderTrackFill" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                            Background="{StaticResource AccentBrush}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SliderTrackEmpty" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                            Background="{StaticResource SurfaceSunkBrush}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SliderThumb" TargetType="Thumb">
+        <Setter Property="Width" Value="15" />
+        <Setter Property="Height" Value="15" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Grid>
+                        <Ellipse x:Name="Knob" Fill="{StaticResource SurfaceBrush}"
+                                 Stroke="{StaticResource AccentBrush}" StrokeThickness="2" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Knob" Property="Fill" Value="{StaticResource AccentTintBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FlatSlider" TargetType="Slider">
+        <Setter Property="SmallChange" Value="1" />
+        <Setter Property="LargeChange" Value="10" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid VerticalAlignment="Center" Background="Transparent">
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderTrackFill}"
+                                              Command="Slider.DecreaseLarge" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource SliderThumb}" />
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderTrackEmpty}"
+                                              Command="Slider.IncreaseLarge" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ══ CheckBox: 플랫 ══ -->
     <Style x:Key="FlatCheckBox" TargetType="CheckBox">
         <Setter Property="FontSize" Value="11" />
