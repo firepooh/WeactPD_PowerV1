@@ -227,6 +227,9 @@
                                         <Style TargetType="Ellipse">
                                             <Setter Property="Fill" Value="{StaticResource TextMutedBrush}" />
                                             <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsReconnecting}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource CurrentBrush}" />
+                                                </DataTrigger>
                                                 <DataTrigger Binding="{Binding IsConnected}" Value="True">
                                                     <Setter Property="Fill" Value="{StaticResource OkBrush}" />
                                                 </DataTrigger>
@@ -305,6 +308,9 @@
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding ConnectionState}" Value="IDLE">
                                                 <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ConnectionState}" Value="RECONNECT">
+                                                <Setter Property="Fill" Value="{StaticResource CurrentBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>

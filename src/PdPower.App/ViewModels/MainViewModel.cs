@@ -23,17 +23,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>슬라이더 드래그가 멈춘 뒤 실제로 밝기를 쓰기까지 기다리는 시간.</summary>
     private static readonly TimeSpan BrightnessWriteDelay = TimeSpan.FromMilliseconds(250);
 
+    /// <summary>재접속 시도 간격.</summary>
+    private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>이 횟수만큼 실패하면 재접속을 포기한다 (간격 × 횟수 = 대기 시간).</summary>
+    public const int MaxReconnectAttempts = 60;
+
     private readonly DispatcherTimer _pollTimer;
     private readonly DispatcherTimer _brightnessDebounce;
+    private readonly DispatcherTimer _reconnectTimer;
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private PdPowerDevice? _device;
     private bool _polling;
     private bool _suppressBrightnessWrite;
 
+    // 재접속 중 유지해야 하는 정보 — 어느 포트로 돌아갈지, 그리고 같은 장치인지 확인할 시리얼
+    private string? _reconnectPort;
+    private string? _expectedSerial;
+    private int _reconnectAttempts;
+
     public MainViewModel()
     {
-        ConnectCommand = new AsyncRelayCommand(_ => ConnectAsync(), _ => !IsConnected && SelectedPort is not null, ReportError);
-        DisconnectCommand = new RelayCommand(_ => Disconnect(), _ => IsConnected);
+        ConnectCommand = new AsyncRelayCommand(_ => ConnectAsync(),
+            _ => !IsConnected && !IsReconnecting && SelectedPort is not null, ReportError);
+
+        // 재접속 대기 중에도 눌러서 취소할 수 있어야 한다
+        DisconnectCommand = new RelayCommand(_ => Disconnect(), _ => IsConnected || IsReconnecting);
         RefreshPortsCommand = new RelayCommand(_ => RefreshPorts());
         SelectPresetCommand = new AsyncRelayCommand(p => SelectPresetAsync(ToInt(p)), _ => IsConnected && !OutputEnabled, ReportError);
         OutputOnCommand = new AsyncRelayCommand(_ => SetOutputAsync(true), _ => IsConnected && !OutputEnabled, ReportError);
@@ -53,6 +68,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _pollTimer = new DispatcherTimer { Interval = PollInterval };
         _pollTimer.Tick += async (_, _) => await PollAsync().ConfigureAwait(true);
+
+        _reconnectTimer = new DispatcherTimer { Interval = ReconnectInterval };
+        _reconnectTimer.Tick += async (_, _) =>
+        {
+            try
+            {
+                await TryReconnectAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                ReportError(ex);
+            }
+        };
 
         _brightnessDebounce = new DispatcherTimer { Interval = BrightnessWriteDelay };
         _brightnessDebounce.Tick += async (_, _) =>
@@ -95,11 +123,31 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>헤더 상태 칩 표시용 — RUN / IDLE / OFFLINE.</summary>
-    public string ConnectionState => !IsConnected ? "OFFLINE" : OutputEnabled ? "RUN" : "IDLE";
+    /// <summary>USB가 빠졌거나 응답이 없어 재접속을 기다리는 중.</summary>
+    private bool _isReconnecting;
+    public bool IsReconnecting
+    {
+        get => _isReconnecting;
+        private set
+        {
+            if (!SetField(ref _isReconnecting, value)) return;
+            OnPropertyChanged(nameof(ConnectionState));
+            OnPropertyChanged(nameof(LinkLabel));
+            RaiseCommandStates();
+        }
+    }
+
+    /// <summary>헤더 상태 칩 표시용 — RUN / IDLE / RECONNECT / OFFLINE.</summary>
+    public string ConnectionState =>
+        IsConnected ? (OutputEnabled ? "RUN" : "IDLE")
+        : IsReconnecting ? "RECONNECT"
+        : "OFFLINE";
 
     /// <summary>PORT 카드용 링크 상태. 헤더 칩과 중복되지 않게 출력 상태는 섞지 않는다.</summary>
-    public string LinkLabel => IsConnected ? "LINKED" : "OFFLINE";
+    public string LinkLabel =>
+        IsConnected ? "LINKED"
+        : IsReconnecting ? "RECONNECT"
+        : "OFFLINE";
 
     // ── 장치 정보 ────────────────────────────────────────────────────────
 
@@ -322,24 +370,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (SelectedPort is null) return;
 
-        var device = new PdPowerDevice(SelectedPort);
-        device.FrameExchanged += (_, trace) =>
-        {
-            if (IsFrameTraceEnabled) AppendLog(trace.ToString());
-        };
+        StopReconnect();
+        var device = OpenDevice(SelectedPort);
 
         try
         {
-            device.Open();
             var info = await device.ReadDeviceInfoAsync().ConfigureAwait(true);
-            DeviceName = info.Name;
-            FirmwareVersion = info.FirmwareVersion;
-            SerialNumber = info.SerialNumber;
-
-            _device = device;
-            IsConnected = true;
-            await RefreshSettingsAsync().ConfigureAwait(true);
-            _pollTimer.Start();
+            await AdoptDeviceAsync(device, info).ConfigureAwait(true);
             StatusMessage = $"{SelectedPort} 연결됨 — {info.Name}";
         }
         catch
@@ -349,12 +386,67 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>사용자가 명시적으로 끊는 경우 — 재접속 대기까지 취소한다.</summary>
     public void Disconnect()
+    {
+        bool wasWaiting = IsReconnecting;
+        StopReconnect();
+        TeardownLink(transient: false);
+        StatusMessage = wasWaiting ? "재접속 대기를 취소했습니다." : "연결이 해제되었습니다.";
+    }
+
+    private PdPowerDevice OpenDevice(string portName)
+    {
+        var device = new PdPowerDevice(portName);
+        try
+        {
+            device.FrameExchanged += OnFrameExchanged;
+            device.Open();
+            return device;
+        }
+        catch
+        {
+            // Open 이 실패하면 호출자에게 인스턴스가 전달되지 않으므로 여기서 정리해야 한다
+            device.FrameExchanged -= OnFrameExchanged;
+            device.Dispose();
+            throw;
+        }
+    }
+
+    private void OnFrameExchanged(object? sender, FrameTrace trace)
+    {
+        if (IsFrameTraceEnabled) AppendLog(trace.ToString());
+    }
+
+    /// <summary>열려 있는 장치를 이 ViewModel 의 것으로 받아들이고 폴링을 시작한다.</summary>
+    private async Task AdoptDeviceAsync(PdPowerDevice device, DeviceInfo info)
+    {
+        DeviceName = info.Name;
+        FirmwareVersion = info.FirmwareVersion;
+        SerialNumber = info.SerialNumber;
+
+        _device = device;
+        IsConnected = true;
+        await RefreshSettingsAsync().ConfigureAwait(true);
+        _pollTimer.Start();
+    }
+
+    /// <summary>
+    /// 포트를 닫고 실시간 상태를 비운다.
+    /// <paramref name="transient"/> 면 장치 식별 정보와 Trend 히스토리를 남긴다 —
+    /// USB가 잠깐 빠진 것뿐이라면 돌아왔을 때 그래프가 이어지는 편이 낫다.
+    /// </summary>
+    private void TeardownLink(bool transient)
     {
         _pollTimer.Stop();
         _brightnessDebounce.Stop();
-        _device?.Dispose();
-        _device = null;
+
+        if (_device is not null)
+        {
+            _device.FrameExchanged -= OnFrameExchanged;
+            _device.Dispose();
+            _device = null;
+        }
 
         IsConnected = false;
         OutputEnabled = false;
@@ -362,10 +454,111 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         HasUnsavedChanges = false;
         MeasuredVolts = MeasuredAmps = InputVolts = 0;
         Regulation = OutputRegulation.ConstantVoltage;
-        DeviceName = FirmwareVersion = SerialNumber = "—";
         InputState = "—";
-        History.Clear();
-        StatusMessage = "연결이 해제되었습니다.";
+
+        if (!transient)
+        {
+            DeviceName = FirmwareVersion = SerialNumber = "—";
+            History.Clear();
+        }
+    }
+
+    // ── 재접속 대기 ──────────────────────────────────────────────────────
+
+    /// <summary>통신이 끊어졌을 때 같은 포트로 돌아오기를 기다린다.</summary>
+    private void BeginReconnect(string reason)
+    {
+        // 어느 포트로 돌아갈지, 그리고 같은 장치인지 판별할 시리얼을 먼저 붙잡아 둔다
+        _reconnectPort = SelectedPort;
+        _expectedSerial = SerialNumber is "—" or "" ? null : SerialNumber;
+
+        TeardownLink(transient: true);
+
+        if (_reconnectPort is null)
+        {
+            StatusMessage = $"연결이 끊어졌습니다: {reason}";
+            return;
+        }
+
+        _reconnectAttempts = 0;
+        IsReconnecting = true;
+        _reconnectTimer.Start();
+        AppendLog($"LINK LOST {reason} — {_reconnectPort} 재접속 대기");
+        StatusMessage = $"연결이 끊어졌습니다 — {_reconnectPort} 재접속 대기 중… ({reason})";
+    }
+
+    private void StopReconnect()
+    {
+        _reconnectTimer.Stop();
+        IsReconnecting = false;
+        _reconnectPort = null;
+        _expectedSerial = null;
+        _reconnectAttempts = 0;
+    }
+
+    private async Task TryReconnectAsync()
+    {
+        if (_reconnectPort is null) { StopReconnect(); return; }
+
+        _reconnectAttempts++;
+        if (_reconnectAttempts > MaxReconnectAttempts)
+        {
+            string port = _reconnectPort;
+            StopReconnect();
+            TeardownLink(transient: false);
+            StatusMessage = $"{port} 재접속에 실패했습니다 " +
+                            $"({MaxReconnectAttempts * ReconnectInterval.TotalSeconds:F0}초 초과). 수동으로 연결하세요.";
+            return;
+        }
+
+        // 포트가 아직 열거로 돌아오지 않았으면 열어볼 필요도 없다
+        if (!PdPowerDevice.GetPortNames().Contains(_reconnectPort, StringComparer.OrdinalIgnoreCase))
+        {
+            StatusMessage = $"{_reconnectPort} 대기 중… ({_reconnectAttempts}/{MaxReconnectAttempts})";
+            return;
+        }
+
+        PdPowerDevice? device = null;
+        try
+        {
+            device = OpenDevice(_reconnectPort);
+            var info = await device.ReadDeviceInfoAsync().ConfigureAwait(true);
+
+            // 같은 포트 이름에 다른 장치가 꽂힐 수 있다. 시리얼이 다르면 붙지 않고 멈춘다 —
+            // 엉뚱한 전원 장치에 프리셋을 쓰는 것보다 사용자가 직접 고르는 게 안전하다.
+            if (_expectedSerial is not null && !string.Equals(info.SerialNumber, _expectedSerial, StringComparison.OrdinalIgnoreCase))
+            {
+                device.FrameExchanged -= OnFrameExchanged;
+                device.Dispose();
+                string port = _reconnectPort;
+                StopReconnect();
+                TeardownLink(transient: false);
+                StatusMessage = $"{port} 에 다른 장치가 있습니다 (SN {info.SerialNumber}) — 자동 재접속을 중단했습니다.";
+                return;
+            }
+
+            await AdoptDeviceAsync(device, info).ConfigureAwait(true);
+            int attempts = _reconnectAttempts;
+            StopReconnect();
+            AppendLog($"LINK RESTORED {info.Name}");
+            StatusMessage = $"재접속했습니다 — {info.Name} ({attempts}회 시도)";
+        }
+        catch (PdPowerException)
+        {
+            // 포트는 보이지만 아직 응답할 준비가 안 된 상태 — 다음 주기에 다시 시도한다.
+            // AdoptDeviceAsync 도중에 터졌다면 이미 _device 로 채택된 상태이므로 링크째로 정리한다.
+            if (ReferenceEquals(_device, device))
+            {
+                TeardownLink(transient: true);
+            }
+            else if (device is not null)
+            {
+                device.FrameExchanged -= OnFrameExchanged;
+                device.Dispose();
+            }
+
+            StatusMessage = $"{_reconnectPort} 응답 없음 — 재시도 중… ({_reconnectAttempts}/{MaxReconnectAttempts})";
+        }
     }
 
     /// <summary>프리셋 전체와 현재 설정을 장치에서 다시 읽어온다.</summary>
@@ -422,9 +615,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         catch (PdPowerException ex)
         {
-            StatusMessage = $"통신 오류로 연결을 해제했습니다: {ex.Message}";
+            // USB가 빠졌거나 장치가 재부팅된 경우 — 끊고 끝내지 않고 돌아오기를 기다린다
             AppendLog($"ERROR {ex.Message}");
-            Disconnect();
+            BeginReconnect(ex.Message);
         }
         finally
         {
