@@ -139,6 +139,10 @@ internal static class Program
                 return 0;
             }
 
+            case "bench":
+                await Benchmark(device, options).ConfigureAwait(false);
+                return 0;
+
             case "test-ocp":
                 return await TestOcp(device, options).ConfigureAwait(false);
 
@@ -223,6 +227,61 @@ internal static class Program
         {
             Console.WriteLine("\n중단됨.");
         }
+    }
+
+    /// <summary>
+    /// GUI 폴링이 매 주기에 쓰는 읽기 명령들의 왕복 시간을 측정한다.
+    /// 폴링 주기를 얼마까지 줄일 수 있는지 판단하는 근거 — 읽기 전용이라 출력 중에도 안전하다.
+    /// </summary>
+    private static async Task Benchmark(PdPowerDevice device, CommandLine options)
+    {
+        int iterations = options.OptionalInt(0) ?? 200;
+        Console.WriteLine($"{iterations}회 반복 — GUI 폴링과 같은 3개 읽기 명령\n");
+
+        var probes = new (string Name, Func<Task> Run)[]
+        {
+            ("READ_OUTPUT_DISPLAY 0x85", () => device.ReadMeasurementAsync()),
+            ("READ_OUTPUT_STATE   0x82", () => device.ReadOutputStatusAsync()),
+            ("READ_INPUT_STATE    0x8A", () => device.ReadInputStatusAsync()),
+        };
+
+        var samples = probes.ToDictionary(p => p.Name, _ => new List<double>(iterations));
+        var cycle = new List<double>(iterations);
+        var clock = new System.Diagnostics.Stopwatch();
+
+        // 첫 왕복은 포트 워밍업이 섞이므로 버린다
+        foreach (var probe in probes) await probe.Run().ConfigureAwait(false);
+
+        for (int i = 0; i < iterations; i++)
+        {
+            double total = 0;
+            foreach (var probe in probes)
+            {
+                clock.Restart();
+                await probe.Run().ConfigureAwait(false);
+                clock.Stop();
+                double ms = clock.Elapsed.TotalMilliseconds;
+                samples[probe.Name].Add(ms);
+                total += ms;
+            }
+            cycle.Add(total);
+        }
+
+        Console.WriteLine("명령                        최소     평균     p95     최대");
+        foreach (var probe in probes) PrintStats(probe.Name, samples[probe.Name]);
+        Console.WriteLine(new string('-', 58));
+        PrintStats("폴링 1주기 합계", cycle);
+
+        double avgCycle = cycle.Average();
+        Console.WriteLine($"\n250 ms 주기 기준 점유율 : {avgCycle / 250 * 100:F1} %");
+        Console.WriteLine($"이론상 최소 주기        : 약 {cycle.Max():F1} ms (최악값 기준)");
+    }
+
+    private static void PrintStats(string label, List<double> values)
+    {
+        var sorted = values.OrderBy(v => v).ToList();
+        double p95 = sorted[(int)(sorted.Count * 0.95)];
+        Console.WriteLine($"{label,-26} {sorted[0],6:F2}  {values.Average(),6:F2}  {p95,6:F2}  {sorted[^1],6:F2}");
     }
 
     private static async Task<OutputSetpoint> ReadActiveSetpoint(PdPowerDevice device)
@@ -452,6 +511,7 @@ internal static class Program
           presets                   프리셋 M0–M4 전체
           monitor [간격ms]          실측값 연속 폴링 (기본 250 ms)
           selftest                  info + status + presets 한 번에
+          bench [횟수]              폴링 명령 왕복 시간 측정 (기본 200회)
 
         상태 변경 명령 (--yes 로 확인 생략):
           preset <id>               활성 프리셋 선택 (0–4)
