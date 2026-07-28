@@ -566,18 +566,52 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <TextBlock Style="{StaticResource MicroMono}" VerticalAlignment="Center"
-                                           Margin="0,0,10,0">
-                                    <Run Text="{Binding History.Count, Mode=OneWay}" /><Run Text="/64" />
-                                </TextBlock>
+                                <!-- 시간 범위. 창을 바꾸면 저장 간격도 함께 조정된다 -->
+                                <Button Content="1m" Command="{Binding SelectRangeCommand}" CommandParameter="60">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource RangeButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedRangeSeconds}" Value="60">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="5m" Command="{Binding SelectRangeCommand}" CommandParameter="300">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource RangeButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedRangeSeconds}" Value="300">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="1h" Command="{Binding SelectRangeCommand}" CommandParameter="3600">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource RangeButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedRangeSeconds}" Value="3600">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
                                 <Button Content="Clear" Style="{StaticResource GhostButton}" Padding="8,4"
-                                        Command="{Binding ClearHistoryCommand}" />
+                                        Margin="10,0,0,0" Command="{Binding ClearHistoryCommand}" />
                                 <Button Content="Hide" Style="{StaticResource GhostButton}" Padding="8,4"
                                         Margin="6,0,0,0" Command="{Binding ToggleTrendCommand}" />
                             </StackPanel>
                         </Grid>
 
-                        <ctl:TrendChart Grid.Row="1" Samples="{Binding History}"
+                        <ctl:TrendChart Grid.Row="1" History="{Binding History}"
                                         Visibility="{Binding IsTrendVisible, Converter={StaticResource BoolToVisibility}}"
                                         VoltageBrush="{StaticResource AccentBrush}"
                                         CurrentBrush="{StaticResource CurrentBrush}"
@@ -679,6 +713,111 @@
                                             </Button.Style>
                                         </Button>
                                     </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,14" />
+
+                        <!-- 폴링 주기 (앱 설정, 장치와 무관) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Measurement interval" FontSize="13"
+                                               Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="0x85" Style="{StaticResource MicroMono}" Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           Text="READ_OUTPUT_DISPLAY 읽기 주기. 10 ms 단위, 10~500 ms. 장치 표시값 갱신이 더 느려서 10 ms 아래로는 새 데이터가 없습니다." />
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextMutedBrush}">
+                                    <Run Text="현재 Trend 저장 간격" />
+                                    <Run Text="{Binding StorageIntervalMs, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /><Run Text=" ms" />
+                                    <Run Text="— 선택한 시간 범위에서 유도됩니다. 이보다 촘촘한 샘플은 그래프에 저장되지 않습니다." />
+                                </TextBlock>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Style="{StaticResource StepperPill}" Width="132"
+                                    VerticalAlignment="Center">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="−" Style="{StaticResource StepGlyph}"
+                                            AutomationProperties.AutomationId="PollIntervalDown"
+                                            Command="{Binding NudgePollIntervalCommand}" CommandParameter="-1" />
+                                    <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,6"
+                                                HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding PollIntervalMs}"
+                                                   FontFamily="{StaticResource MonoFont}" FontSize="13" />
+                                        <TextBlock Text="ms" FontSize="11" Margin="3,0,0,0"
+                                                   Foreground="{StaticResource TextTertiaryBrush}"
+                                                   VerticalAlignment="Bottom" />
+                                    </StackPanel>
+                                    <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                                    <Button Grid.Column="4" Content="+" Style="{StaticResource StepGlyph}"
+                                            AutomationProperties.AutomationId="PollIntervalUp"
+                                            Command="{Binding NudgePollIntervalCommand}" CommandParameter="1" />
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,14" />
+
+                        <!-- 상태·입력 읽기 배수 -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="State read every N ticks" FontSize="13"
+                                               Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="0x82 · 0x8A" Style="{StaticResource MicroMono}" Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           Text="CV/CC/OC 와 입력 상태를 측정 주기의 몇 배로 읽을지. 1이면 매번 — OCP 트립(약 200 ms)의 CC→OC 전이를 놓치지 않으려면 실효 주기를 200 ms 아래로 두세요." />
+                                <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
+                                    <Run Text="실효 주기" />
+                                    <Run Text="{Binding StatusIntervalMs, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /><Run Text=" ms" />
+                                </TextBlock>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Style="{StaticResource StepperPill}" Width="132"
+                                    VerticalAlignment="Center">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="−" Style="{StaticResource StepGlyph}"
+                                            Command="{Binding NudgeStatusDivisorCommand}" CommandParameter="-1" />
+                                    <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                                    <TextBlock Grid.Column="2" Padding="0,6" HorizontalAlignment="Center"
+                                               FontFamily="{StaticResource MonoFont}" FontSize="13"
+                                               Text="{Binding StatusDivisor, StringFormat={}×{0}}" />
+                                    <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                                    <Button Grid.Column="4" Content="+" Style="{StaticResource StepGlyph}"
+                                            Command="{Binding NudgeStatusDivisorCommand}" CommandParameter="1" />
                                 </Grid>
                             </Border>
                         </Grid>

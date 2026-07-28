@@ -1,15 +1,22 @@
-using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
-using PdPower.App.ViewModels;
+using System.Windows.Threading;
+using PdPower.Core.Models;
 
 namespace PdPower.App.Controls;
 
 /// <summary>
-/// 듀얼 Y축 시계열 차트 — 좌축 전압, 우축 전류.
-/// 샘플 수가 64개로 고정이라 직접 그리는 편이 차트 라이브러리보다 가볍고 디자인에 정확히 맞는다.
+/// 듀얼 Y축 시계열 차트 — 좌축 전압, 우축 전류. x축은 인덱스가 아니라 <b>시각</b>이다.
 /// </summary>
+/// <remarks>
+/// 점이 화면 폭보다 많으면 픽셀 열마다 최소/최대를 뽑아 수직선으로 그린다(min/max 데시메이션).
+/// 1시간 창의 14,400점을 700 px 에 균등 샘플링으로 넣으면 스파이크가 사라지는데,
+/// 전원 장치 파형에서 그 스파이크가 정작 보고 싶은 것이다.
+///
+/// 재렌더는 자체 타이머로 묶는다. 백그라운드 폴링이 10 ms 마다 점을 넣으므로
+/// 이벤트마다 InvalidateVisual 하면 초당 100회 렌더가 걸린다.
+/// </remarks>
 public sealed class TrendChart : FrameworkElement
 {
     private const double LeftAxisWidth = 38;
@@ -23,9 +30,27 @@ public sealed class TrendChart : FrameworkElement
 
     private static readonly Typeface LabelTypeface = new("Consolas");
 
-    public static readonly DependencyProperty SamplesProperty = DependencyProperty.Register(
-        nameof(Samples), typeof(IEnumerable<MeasurementSample>), typeof(TrendChart),
-        new PropertyMetadata(null, OnSamplesChanged));
+    /// <summary>렌더 상한 ≈ 16 fps. 폴링 주기와 무관하게 이 속도로만 다시 그린다.</summary>
+    private static readonly TimeSpan RenderInterval = TimeSpan.FromMilliseconds(60);
+
+    private readonly DispatcherTimer _renderTimer;
+    private bool _dirty;
+
+    public TrendChart()
+    {
+        _renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = RenderInterval };
+        _renderTimer.Tick += (_, _) =>
+        {
+            if (!_dirty) return;
+            _dirty = false;
+            InvalidateVisual();
+        };
+        _renderTimer.Start();
+    }
+
+    public static readonly DependencyProperty HistoryProperty = DependencyProperty.Register(
+        nameof(History), typeof(MeasurementHistory), typeof(TrendChart),
+        new PropertyMetadata(null, OnHistoryChanged));
 
     public static readonly DependencyProperty VoltageBrushProperty = DependencyProperty.Register(
         nameof(VoltageBrush), typeof(Brush), typeof(TrendChart),
@@ -43,10 +68,10 @@ public sealed class TrendChart : FrameworkElement
         nameof(AxisLabelBrush), typeof(Brush), typeof(TrendChart),
         new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public IEnumerable<MeasurementSample>? Samples
+    public MeasurementHistory? History
     {
-        get => (IEnumerable<MeasurementSample>?)GetValue(SamplesProperty);
-        set => SetValue(SamplesProperty, value);
+        get => (MeasurementHistory?)GetValue(HistoryProperty);
+        set => SetValue(HistoryProperty, value);
     }
 
     public Brush VoltageBrush
@@ -73,21 +98,18 @@ public sealed class TrendChart : FrameworkElement
         set => SetValue(AxisLabelBrushProperty, value);
     }
 
-    /// <summary>컬렉션이 통째로 교체될 때 구독을 옮긴다.</summary>
-    private static void OnSamplesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void OnHistoryChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var chart = (TrendChart)d;
 
-        if (e.OldValue is INotifyCollectionChanged oldCollection)
-            oldCollection.CollectionChanged -= chart.OnCollectionChanged;
+        if (e.OldValue is MeasurementHistory old) old.Updated -= chart.OnHistoryUpdated;
+        if (e.NewValue is MeasurementHistory added) added.Updated += chart.OnHistoryUpdated;
 
-        if (e.NewValue is INotifyCollectionChanged newCollection)
-            newCollection.CollectionChanged += chart.OnCollectionChanged;
-
-        chart.InvalidateVisual();
+        chart._dirty = true;
     }
 
-    private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => InvalidateVisual();
+    /// <summary>백그라운드 폴링 스레드에서 올라온다 — 플래그만 세우고 렌더는 타이머에 맡긴다.</summary>
+    private void OnHistoryUpdated(object? sender, EventArgs e) => _dirty = true;
 
     protected override void OnRender(DrawingContext dc)
     {
@@ -101,25 +123,30 @@ public sealed class TrendChart : FrameworkElement
             width - LeftAxisWidth - RightAxisWidth,
             height - TopPadding - BottomPadding);
 
-        var samples = Samples?.ToList() ?? [];
-        double voltageMax = NiceCeiling(samples.Count > 0 ? samples.Max(s => s.Volts) : 0, 20.0, 5.0);
-        double currentMax = NiceCeiling(samples.Count > 0 ? samples.Max(s => s.Amps) : 0, 3.0, 0.5);
+        var history = History;
+        var now = DateTime.Now;
+        var window = history?.Window ?? TimeSpan.FromMinutes(1);
+        var samples = history?.Snapshot(now) ?? [];
+
+        double voltageMax = NiceCeiling(samples.Length > 0 ? samples.Max(s => s.Volts) : 0, 20.0, 5.0);
+        double currentMax = NiceCeiling(samples.Length > 0 ? samples.Max(s => s.Amps) : 0, 3.0, 0.5);
 
         DrawGrid(dc, plot, voltageMax, currentMax);
 
-        if (samples.Count >= 2)
+        if (samples.Length >= 2)
         {
-            DrawSeries(dc, plot, samples, s => s.Volts, voltageMax, VoltageBrush);
-            DrawSeries(dc, plot, samples, s => s.Amps, currentMax, CurrentBrush);
-            DrawTimeLabels(dc, plot, samples);
+            DrawSeries(dc, plot, samples, now, window, s => s.Volts, voltageMax, VoltageBrush);
+            DrawSeries(dc, plot, samples, now, window, s => s.Amps, currentMax, CurrentBrush);
         }
         else
         {
-            var hint = FormatText(samples.Count == 0 ? "waiting for samples" : "collecting…", 10);
+            var hint = FormatText(samples.Length == 0 ? "waiting for samples" : "collecting…", 10);
             dc.DrawText(hint, new Point(
                 plot.X + (plot.Width - hint.Width) / 2,
                 plot.Y + (plot.Height - hint.Height) / 2));
         }
+
+        DrawTimeLabels(dc, plot, now, window);
     }
 
     private void DrawGrid(DrawingContext dc, Rect plot, double voltageMax, double currentMax)
@@ -143,34 +170,89 @@ public sealed class TrendChart : FrameworkElement
         }
     }
 
+    /// <summary>
+    /// 점이 픽셀 열 수보다 많으면 열마다 최소/최대를 수직선으로, 적으면 폴리라인으로 그린다.
+    /// </summary>
     private void DrawSeries(
-        DrawingContext dc, Rect plot, List<MeasurementSample> samples,
+        DrawingContext dc, Rect plot, MeasurementSample[] samples, DateTime now, TimeSpan window,
         Func<MeasurementSample, double> selector, double max, Brush brush)
     {
-        var geometry = new StreamGeometry();
-        using (var ctx = geometry.Open())
-        {
-            for (int i = 0; i < samples.Count; i++)
-            {
-                double x = plot.X + plot.Width * i / (samples.Count - 1);
-                double y = plot.Bottom - plot.Height * Math.Clamp(selector(samples[i]) / max, 0, 1);
+        var pen = new Pen(brush, 1.6) { LineJoin = PenLineJoin.Round };
+        int columns = Math.Max(1, (int)plot.Width);
 
-                if (i == 0) ctx.BeginFigure(new Point(x, y), isFilled: false, isClosed: false);
-                else ctx.LineTo(new Point(x, y), isStroked: true, isSmoothJoin: true);
+        double XOf(DateTime t)
+        {
+            double age = (now - t).TotalMilliseconds;
+            double ratio = 1 - Math.Clamp(age / window.TotalMilliseconds, 0, 1);
+            return plot.X + plot.Width * ratio;
+        }
+
+        double YOf(double value) => plot.Bottom - plot.Height * Math.Clamp(value / max, 0, 1);
+
+        if (samples.Length <= columns)
+        {
+            var geometry = new StreamGeometry();
+            using (var ctx = geometry.Open())
+            {
+                for (int i = 0; i < samples.Length; i++)
+                {
+                    var point = new Point(XOf(samples[i].Timestamp), YOf(selector(samples[i])));
+                    if (i == 0) ctx.BeginFigure(point, isFilled: false, isClosed: false);
+                    else ctx.LineTo(point, isStroked: true, isSmoothJoin: true);
+                }
+            }
+            geometry.Freeze();
+            dc.DrawGeometry(null, pen, geometry);
+            return;
+        }
+
+        // min/max 데시메이션: 열마다 세로 범위를 긋고, 열 사이는 평균으로 이어 추세를 남긴다
+        var spine = new StreamGeometry();
+        using (var ctx = spine.Open())
+        {
+            bool started = false;
+            int index = 0;
+
+            for (int column = 0; column < columns; column++)
+            {
+                double columnRight = plot.X + (column + 1) * plot.Width / columns;
+
+                double min = double.MaxValue, maxValue = double.MinValue;
+                int taken = 0;
+                while (index < samples.Length && XOf(samples[index].Timestamp) <= columnRight)
+                {
+                    double value = selector(samples[index]);
+                    min = Math.Min(min, value);
+                    maxValue = Math.Max(maxValue, value);
+                    taken++;
+                    index++;
+                }
+
+                if (taken == 0) continue;
+
+                double x = plot.X + (column + 0.5) * plot.Width / columns;
+                double yMin = YOf(min), yMax = YOf(maxValue);
+                if (Math.Abs(yMin - yMax) > 0.5) dc.DrawLine(pen, new Point(x, yMin), new Point(x, yMax));
+
+                var mid = new Point(x, (yMin + yMax) / 2);
+                if (!started) { ctx.BeginFigure(mid, isFilled: false, isClosed: false); started = true; }
+                else ctx.LineTo(mid, isStroked: true, isSmoothJoin: true);
             }
         }
-        geometry.Freeze();
-
-        dc.DrawGeometry(null, new Pen(brush, 1.6) { LineJoin = PenLineJoin.Round }, geometry);
+        spine.Freeze();
+        dc.DrawGeometry(null, pen, spine);
     }
 
-    private void DrawTimeLabels(DrawingContext dc, Rect plot, List<MeasurementSample> samples)
+    private void DrawTimeLabels(DrawingContext dc, Rect plot, DateTime now, TimeSpan window)
     {
-        var first = FormatText(samples[0].Timestamp.ToString("HH:mm:ss", CultureInfo.InvariantCulture), 10);
-        var last = FormatText(samples[^1].Timestamp.ToString("HH:mm:ss", CultureInfo.InvariantCulture), 10);
+        // 창이 길면 초 단위는 의미가 없다
+        string format = window >= TimeSpan.FromMinutes(10) ? "HH:mm" : "HH:mm:ss";
 
-        dc.DrawText(first, new Point(plot.X, plot.Bottom + 5));
-        dc.DrawText(last, new Point(plot.Right - last.Width, plot.Bottom + 5));
+        var start = FormatText((now - window).ToString(format, CultureInfo.InvariantCulture), 10);
+        var end = FormatText(now.ToString(format, CultureInfo.InvariantCulture), 10);
+
+        dc.DrawText(start, new Point(plot.X, plot.Bottom + 5));
+        dc.DrawText(end, new Point(plot.Right - end.Width, plot.Bottom + 5));
     }
 
     private FormattedText FormatText(string text, double size) => new(

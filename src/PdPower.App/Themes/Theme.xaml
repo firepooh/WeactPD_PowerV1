@@ -187,6 +187,35 @@
         </Setter>
     </Style>
 
+    <!--
+      Trend 시간 범위 (1m / 5m / 1h). 목업 기준으로 테두리 없이 선택된 칸만
+      가라앉은 면 + 진한 글자로 구분한다.
+    -->
+    <Style x:Key="RangeButton" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- 스테퍼 알약 안의 −/+ : 테두리 없이 내부 헤어라인으로만 구분 -->
     <Style x:Key="StepGlyph" TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}" />

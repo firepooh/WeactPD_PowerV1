@@ -129,7 +129,7 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 - **좌측 레일**: Monitor/Log 내비, 프리셋 M0–M4 카드(1클릭 적용·더블클릭 편집·출력 중 잠금), PD INPUT 카드(5/9/12/15/20 V), PORT 카드(COM 선택·연결)
 - **메인**: 측정 스트립 3열(Voltage/Current/Power + Set 스테퍼·Output ON/OFF·CV/CC 배지), 듀얼축 Trend 차트, 푸터(SN·FW·입력 정보)
 - 스테퍼: 휠 ±1 / Ctrl+휠 ±0.1, 범위 1–20 V / 0–3 A, 변경 즉시 장치 반영
-- 샘플링 250 ms 폴링 (`READ_OUTPUT_DISPLAY` + `READ_OUTPUT_STATE`), 히스토리 64 포인트
+- Trend 시간 범위 1m / 5m / 1h, 측정 주기는 Setup 에서 10 ms 단위로 조절 (기본 250 ms)
 
 ### 디자인 재현에서 놓치기 쉬운 것들
 
@@ -149,7 +149,9 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 | 밀도 | 본문 11–13 px. 기본 WPF 크기를 쓰면 계기판이 아니라 웹 폼처럼 보인다 |
 
 Trend 차트는 [`Controls/TrendChart.cs`](src/PdPower.App/Controls/TrendChart.cs) 에서 직접 그린다.
-샘플이 64개로 고정이라 차트 라이브러리보다 가볍고, 축 오토스케일(1/2/2.5/5 단위)을 스펙대로 맞추기 쉽다.
+x축은 인덱스가 아니라 **시각**이고, 점이 화면 폭보다 많으면 픽셀 열마다 최소/최대를 뽑아
+수직선으로 그린다(min/max 데시메이션). 1시간 창의 14,400점을 균등 샘플링으로 700 px 에 넣으면
+스파이크가 사라지는데, 전원 장치 파형에서는 그 스파이크가 정작 보고 싶은 것이다.
 
 ![Log 화면 — 원시 프레임 트레이스](docs/images/app-log.png)
 
@@ -170,7 +172,8 @@ WeactPD_PowerV1/
 │  │  │  ├─ ProtocolMode.cs       ←   UsbCdc / Uart
 │  │  │  ├─ Crc8.cs               ←   CRC-8 (0x31, init 0xFF)
 │  │  │  └─ Frame.cs              ←   프레임 인코딩/디코딩, 응답 길이표
-│  │  ├─ Models/                  ←   DeviceInfo, OutputStatus, InputStatus 등
+│  │  ├─ Models/                  ←   DeviceInfo, OutputStatus, InputStatus,
+│  │  │                           ←   MeasurementHistory (시간 기준 링 버퍼)
 │  │  ├─ PdPowerDevice.cs         ←   장치 API (SerialPort 요청/응답)
 │  │  └─ PdPowerException.cs
 │  ├─ PdPower.Cli/                ← 실장비 검증 콘솔 도구 (net8.0)
@@ -236,7 +239,9 @@ dotnet run --project src/PdPower.App
   - [x] 250 ms 폴링 → 실측 V/A/W, CV/CC/OC 배지, RUN/IDLE/OFFLINE 칩
   - [x] `ON│OFF` 세그먼트 출력 제어
   - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
-  - [x] 듀얼축 Trend 차트 + 오토스케일, Clear/Hide
+  - [x] 듀얼축 Trend 차트 + 오토스케일, Clear/Hide, 시간 범위 1m/5m/1h
+  - [x] 백그라운드 폴링 루프 + 60 ms 화면 갱신 (10 ms 주기에서도 UI 유지)
+  - [x] 측정 주기(10 ms 단위) · 상태 읽기 배수 설정
   - [x] Log 화면 (원시 프레임 트레이스 토글)
   - [x] Setup 화면 — OCP on/off, LCD 밝기 슬라이더, 설정 저장(`0x44`) + 미저장 표시
   - [x] USB 단절 시 자동 재접속 대기 (아래 참조)
@@ -245,7 +250,7 @@ dotnet run --project src/PdPower.App
   - [ ] 미연결 시 CV 배지가 뜨는 문제 (기본값이 `CV` 라 장치 없이도 표시됨)
   - [ ] 레일 56 px 아이콘 모드 접힘
   - [ ] 프리셋 더블클릭 인라인 편집
-  - [ ] Trend 시간 범위 선택 (1m / 5m / 1h)
+  - [ ] 앱 설정 저장 (측정 주기 등이 재시작하면 기본값으로 돌아간다)
 - [ ] 설치본 패키징
 
 ## 6. 참고 링크
@@ -290,8 +295,47 @@ GUI 폴링이 매 주기에 쓰는 읽기 명령 3개의 왕복 시간. 단위 m
   `ObservableCollection` 갱신 비용이다. 기본이 꺼져 있는 이유이고, 트레이스를 켠 상태로 잰
   시간은 전송 성능의 근거가 될 수 없다.
 
-즉 250 ms는 매우 보수적인 값이다. Trend 해상도를 올리거나 OCP 트립(약 200 ms)을 놓치지 않으려면
-**20~50 ms 로 낮춰도 충분하다.**
+즉 250 ms는 매우 보수적인 값이다. Setup 에서 10 ms 단위로 조절할 수 있다.
+
+### 폴링 구조 — 백그라운드 루프 + 묶은 화면 갱신
+
+`DispatcherTimer` 로 10 ms 를 돌리면 실효 주기가 나오지 않는다. 기본 우선순위가 `Background` 라
+렌더링에 밀리고, 샘플마다 UI 컬렉션을 건드리면 초당 100회 재렌더가 걸린다. 그래서 구조를 나눴다:
+
+- **수집**은 `PeriodicTimer` 백그라운드 루프. UI 를 전혀 건드리지 않고 최신 값 스냅샷과
+  `MeasurementHistory` 에만 쓴다. 주기 변경은 `PeriodicTimer.Period` 로 즉시 반영된다.
+- **화면 반영**은 60 ms 간격으로 묶어서 한 번. 측정 주기와 무관하다.
+- **차트 재렌더**도 `TrendChart` 자체 타이머로 60 ms 로 제한한다. 히스토리 갱신 이벤트는
+  백그라운드 스레드에서 올라오므로 플래그만 세우고 렌더는 UI 타이머가 한다.
+- 측정(`0x85`)은 매 틱, 상태·입력(`0x82`/`0x8A`)은 설정한 배수마다 읽는다.
+  OCP 트립의 CC→OC 전이를 보려면 상태 실효 주기를 200 ms 아래로 두어야 한다.
+
+실측 CPU (COM9, 12 V 출력 중, 한 코어 기준):
+
+| 측정 주기 | CPU | UI 응답 |
+|---|---|---|
+| 250 ms | 2.2 % | 정상 |
+| 10 ms | 29.1 % | **정상** |
+
+10 ms 도 UI 가 멈추지 않는다. 다만 29 %는 싸지 않은데, 대부분 `PdPowerDevice.TransactAsync` 가
+트랜잭션마다 `Task.Run` 으로 스레드 풀을 거치는 비용이다 (초당 300회 → 300번의 스레드 풀 디스패치).
+상시로 10 ms 를 쓸 일이 생기면 그 부분을 먼저 손대면 된다.
+
+### Trend 히스토리 — 저장 간격은 창에서 유도된다
+
+10 ms 폴링으로 1시간 창을 채우면 36만 점이 필요한데 메모리도 렌더링도 감당할 수 없다.
+그래서 [`MeasurementHistory`](src/PdPower.Core/Models/MeasurementHistory.cs) 는 링 버퍼 상한
+14,400점을 두고, **저장 간격 = 창 길이 / 14,400** 으로 계산해 그보다 촘촘한 샘플을 버린다.
+
+| 범위 | 저장 간격 | 250 ms 폴링 시 점 개수 |
+|---|---|---|
+| 1m | 4 ms | 240 |
+| 5m | 21 ms | 1,200 |
+| 1h | 250 ms | 14,400 |
+
+즉 짧은 창에서는 폴링 주기 그대로 다 담기고, 긴 창에서는 알아서 드물게 저장된다.
+x축은 항상 선택한 창 전체를 덮으므로, 기록이 짧으면 오른쪽 일부만 채워진 상태로 보인다
+(1h 를 막 선택하면 거의 빈 그래프인 게 정상이다).
 
 ## 9. 재접속 대기 (USB 단절 복구)
 

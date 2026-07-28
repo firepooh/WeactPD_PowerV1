@@ -8,17 +8,33 @@ using PdPower.Core.Protocol;
 namespace PdPower.App.ViewModels;
 
 /// <summary>
-/// Monitor 화면 상태. 250 ms 폴링으로 실측값을 갱신하고 설정 변경을 장치에 즉시 반영한다.
+/// Monitor 화면 상태.
 /// </summary>
+/// <remarks>
+/// 폴링은 UI 스레드가 아니라 백그라운드 루프에서 돈다. <see cref="DispatcherTimer"/> 로 10 ms 를
+/// 돌리면 렌더링에 밀려 실효 주기가 나오지 않고, 샘플마다 UI 를 건드리면 초당 100회 재렌더가
+/// 걸린다. 그래서 <b>수집은 백그라운드, 화면 반영은 <see cref="UiPublishInterval"/> 로 묶어서</b>
+/// 처리한다.
+/// </remarks>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
-    /// <summary>Trend 차트가 보관하는 샘플 수.</summary>
-    public const int HistoryCapacity = 64;
-
     /// <summary>Log 탭이 보관하는 줄 수.</summary>
     public const int LogCapacity = 500;
 
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
+    public const int MinPollIntervalMs = 10;
+    public const int MaxPollIntervalMs = 500;
+    public const int PollIntervalStepMs = 10;
+    public const int DefaultPollIntervalMs = 250;
+
+    /// <summary>
+    /// 상태·입력(`0x82`/`0x8A`)을 읽는 배수. 측정 주기의 이 배수마다 한 번 읽는다.
+    /// 1이면 매 틱 — 트립 진단처럼 CV/CC/OC 전이를 놓치면 안 될 때 쓴다.
+    /// </summary>
+    public const int MinStatusDivisor = 1;
+    public const int MaxStatusDivisor = 20;
+
+    /// <summary>측정 주기와 무관하게 화면을 갱신하는 주기. 60 ms ≈ 16 fps 로 충분하다.</summary>
+    private static readonly TimeSpan UiPublishInterval = TimeSpan.FromMilliseconds(60);
 
     /// <summary>슬라이더 드래그가 멈춘 뒤 실제로 밝기를 쓰기까지 기다리는 시간.</summary>
     private static readonly TimeSpan BrightnessWriteDelay = TimeSpan.FromMilliseconds(250);
@@ -29,13 +45,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>이 횟수만큼 실패하면 재접속을 포기한다 (간격 × 횟수 = 대기 시간).</summary>
     public const int MaxReconnectAttempts = 60;
 
-    private readonly DispatcherTimer _pollTimer;
+    private readonly DispatcherTimer _uiPublishTimer;
     private readonly DispatcherTimer _brightnessDebounce;
     private readonly DispatcherTimer _reconnectTimer;
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private PdPowerDevice? _device;
-    private bool _polling;
     private bool _suppressBrightnessWrite;
+
+    // 백그라운드 폴링 루프
+    private CancellationTokenSource? _pollCts;
+    private Task? _pollTask;
+
+    /// <summary>
+    /// 백그라운드가 쓰고 UI 가 읽는 최신 측정치. 참조 대입은 원자적이라 락이 필요 없다
+    /// (double 은 volatile 로 표시할 수 없다).
+    /// </summary>
+    private LiveReading? _live;
 
     // 재접속 중 유지해야 하는 정보 — 어느 포트로 돌아갈지, 그리고 같은 장치인지 확인할 시리얼
     private string? _reconnectPort;
@@ -59,6 +84,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SetPdVoltageCommand = new AsyncRelayCommand(_ => SetPdVoltageAsync(), _ => IsConnected && !OutputEnabled, ReportError);
         SaveConfigCommand = new AsyncRelayCommand(_ => SaveConfigAsync(), _ => IsConnected, ReportError);
         ClearHistoryCommand = new RelayCommand(_ => History.Clear());
+        SelectRangeCommand = new RelayCommand(p => SelectRange(ToInt(p)));
+        NudgePollIntervalCommand = new RelayCommand(p => PollIntervalMs += ToInt(p) * PollIntervalStepMs);
+        NudgeStatusDivisorCommand = new RelayCommand(p => StatusDivisor += ToInt(p));
         ToggleTrendCommand = new RelayCommand(_ => IsTrendVisible = !IsTrendVisible);
         ShowMonitorCommand = new RelayCommand(_ => ActiveView = AppView.Monitor);
         ShowSetupCommand = new RelayCommand(_ => ActiveView = AppView.Setup);
@@ -66,8 +94,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OcpOnCommand = new AsyncRelayCommand(_ => SetOcpAsync(true), _ => IsConnected && !IsOcpEnabled, ReportError);
         OcpOffCommand = new AsyncRelayCommand(_ => SetOcpAsync(false), _ => IsConnected && IsOcpEnabled, ReportError);
 
-        _pollTimer = new DispatcherTimer { Interval = PollInterval };
-        _pollTimer.Tick += async (_, _) => await PollAsync().ConfigureAwait(true);
+        _uiPublishTimer = new DispatcherTimer { Interval = UiPublishInterval };
+        _uiPublishTimer.Tick += (_, _) => PublishLiveReading();
 
         _reconnectTimer = new DispatcherTimer { Interval = ReconnectInterval };
         _reconnectTimer.Tick += async (_, _) =>
@@ -205,8 +233,77 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Trend 차트용 시계열. 오래된 샘플부터 버린다.</summary>
-    public ObservableCollection<MeasurementSample> History { get; } = [];
+    /// <summary>Trend 차트용 시계열. 저장 간격은 선택한 시간 범위에서 유도된다.</summary>
+    public MeasurementHistory History { get; } = new();
+
+    // ── Trend 시간 범위 ──────────────────────────────────────────────────
+
+    /// <summary>목업의 1m / 5m / 1h 버튼에 대응.</summary>
+    public static readonly int[] RangeSeconds = [60, 300, 3600];
+
+    private int _selectedRangeSeconds = 60;
+    public int SelectedRangeSeconds
+    {
+        get => _selectedRangeSeconds;
+        private set
+        {
+            if (!SetField(ref _selectedRangeSeconds, value)) return;
+            History.Window = TimeSpan.FromSeconds(value);
+            OnPropertyChanged(nameof(RangeLabel));
+            OnPropertyChanged(nameof(StorageIntervalMs));
+        }
+    }
+
+    public string RangeLabel => SelectedRangeSeconds switch
+    {
+        60 => "1m",
+        300 => "5m",
+        _ => "1h",
+    };
+
+    /// <summary>현재 창에서 유도된 실제 저장 간격 — 폴링 주기보다 크면 샘플이 버려진다.</summary>
+    public int StorageIntervalMs => (int)Math.Round(History.StorageInterval.TotalMilliseconds);
+
+    private void SelectRange(int seconds)
+    {
+        if (RangeSeconds.Contains(seconds)) SelectedRangeSeconds = seconds;
+    }
+
+    // ── 폴링 주기 설정 ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// `READ_OUTPUT_DISPLAY`(0x85) 읽기 주기. 10 ms 단위.
+    /// 장치 표시값 갱신이 이보다 느려서 10 ms 아래로는 새 데이터가 나오지 않는다.
+    /// </summary>
+    private int _pollIntervalMs = DefaultPollIntervalMs;
+    public int PollIntervalMs
+    {
+        get => _pollIntervalMs;
+        private set
+        {
+            int snapped = Math.Clamp(
+                (int)Math.Round(value / (double)PollIntervalStepMs) * PollIntervalStepMs,
+                MinPollIntervalMs, MaxPollIntervalMs);
+
+            if (!SetField(ref _pollIntervalMs, snapped)) return;
+            OnPropertyChanged(nameof(StatusIntervalMs));
+        }
+    }
+
+    /// <summary>상태·입력을 몇 틱마다 읽을지. 1이면 측정과 같은 주기.</summary>
+    private int _statusDivisor = 1;
+    public int StatusDivisor
+    {
+        get => _statusDivisor;
+        private set
+        {
+            if (!SetField(ref _statusDivisor, Math.Clamp(value, MinStatusDivisor, MaxStatusDivisor))) return;
+            OnPropertyChanged(nameof(StatusIntervalMs));
+        }
+    }
+
+    /// <summary>상태·입력의 실효 주기.</summary>
+    public int StatusIntervalMs => PollIntervalMs * StatusDivisor;
 
     // ── 설정값 ───────────────────────────────────────────────────────────
 
@@ -349,6 +446,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand SetPdVoltageCommand { get; }
     public AsyncRelayCommand SaveConfigCommand { get; }
     public RelayCommand ClearHistoryCommand { get; }
+    public RelayCommand SelectRangeCommand { get; }
+    public RelayCommand NudgePollIntervalCommand { get; }
+    public RelayCommand NudgeStatusDivisorCommand { get; }
     public RelayCommand ToggleTrendCommand { get; }
     public RelayCommand ShowMonitorCommand { get; }
     public RelayCommand ShowSetupCommand { get; }
@@ -428,7 +528,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _device = device;
         IsConnected = true;
         await RefreshSettingsAsync().ConfigureAwait(true);
-        _pollTimer.Start();
+        StartPolling();
     }
 
     /// <summary>
@@ -438,7 +538,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void TeardownLink(bool transient)
     {
-        _pollTimer.Stop();
+        StopPolling();
         _brightnessDebounce.Stop();
 
         if (_device is not null)
@@ -584,45 +684,112 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         HasUnsavedChanges = false;
     }
 
-    private async Task PollAsync()
+    // ── 백그라운드 폴링 ──────────────────────────────────────────────────
+
+    /// <summary>백그라운드가 UI 로 넘기는 한 묶음. 불변이라 참조만 갈아끼우면 된다.</summary>
+    private sealed record LiveReading(
+        double Volts, double Amps, bool OutputEnabled, OutputRegulation Regulation,
+        string InputState, double InputVolts);
+
+    private void StartPolling()
     {
-        if (_device is null || _polling) return;
-        _polling = true;
+        StopPolling();
+        if (_device is null) return;
+
+        _pollCts = new CancellationTokenSource();
+        _pollTask = Task.Run(() => PollLoopAsync(_device, _pollCts.Token));
+        _uiPublishTimer.Start();
+    }
+
+    private void StopPolling()
+    {
+        _uiPublishTimer.Stop();
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = null;
+        _pollTask = null;   // 루프는 취소 토큰을 보고 스스로 끝난다 — UI 스레드에서 기다리지 않는다
+        _live = null;
+    }
+
+    /// <summary>
+    /// 측정(<c>0x85</c>)은 매 틱, 상태·입력(<c>0x82</c>/<c>0x8A</c>)은 <see cref="StatusDivisor"/>
+    /// 틱마다 읽는다. UI 는 전혀 건드리지 않고 <see cref="_live"/> 와 <see cref="History"/> 에만 쓴다.
+    /// </summary>
+    private async Task PollLoopAsync(PdPowerDevice device, CancellationToken ct)
+    {
+        using var ticker = new PeriodicTimer(TimeSpan.FromMilliseconds(PollIntervalMs));
+
+        bool enabled = false;
+        var regulation = OutputRegulation.ConstantVoltage;
+        string inputState = "—";
+        double inputVolts = 0;
+        long tick = 0;
+
         try
         {
-            var measurement = await _device.ReadMeasurementAsync().ConfigureAwait(true);
-            var status = await _device.ReadOutputStatusAsync().ConfigureAwait(true);
-
-            MeasuredVolts = measurement.Volts;
-            MeasuredAmps = measurement.Amps;
-            OutputEnabled = status.Enabled;
-            Regulation = status.Regulation;
-
-            History.Add(new MeasurementSample(DateTime.Now, measurement.Volts, measurement.Amps));
-            while (History.Count > HistoryCapacity) History.RemoveAt(0);
-
-            try
+            while (!ct.IsCancellationRequested)
             {
-                var input = await _device.ReadInputStatusAsync().ConfigureAwait(true);
-                InputState = input.State.ToString().ToUpperInvariant();
-                InputVolts = input.Volts;
+                // 주기 설정이 바뀌었으면 반영한다
+                var wanted = TimeSpan.FromMilliseconds(PollIntervalMs);
+                if (ticker.Period != wanted) ticker.Period = wanted;
+
+                var measurement = await device.ReadMeasurementAsync(ct).ConfigureAwait(false);
+
+                if (tick % StatusDivisor == 0)
+                {
+                    var status = await device.ReadOutputStatusAsync(ct).ConfigureAwait(false);
+                    enabled = status.Enabled;
+                    regulation = status.Regulation;
+
+                    try
+                    {
+                        var input = await device.ReadInputStatusAsync(ct).ConfigureAwait(false);
+                        inputState = input.State.ToString().ToUpperInvariant();
+                        inputVolts = input.Volts;
+                    }
+                    catch (PdPowerException)
+                    {
+                        // INPUT_STATE 는 펌웨어 v1.0.2.0 이상 — 없으면 조용히 건너뛴다
+                        inputState = "N/A";
+                    }
+                }
+
+                _live = new LiveReading(measurement.Volts, measurement.Amps, enabled, regulation, inputState, inputVolts);
+                History.Add(new MeasurementSample(DateTime.Now, measurement.Volts, measurement.Amps));
+
+                tick++;
+                await ticker.WaitForNextTickAsync(ct).ConfigureAwait(false);
             }
-            catch (PdPowerException)
-            {
-                // INPUT_STATE는 펌웨어 v1.0.2.0 이상에서만 지원 — 없으면 조용히 건너뛴다.
-                InputState = "N/A";
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 정상 종료
         }
         catch (PdPowerException ex)
         {
-            // USB가 빠졌거나 장치가 재부팅된 경우 — 끊고 끝내지 않고 돌아오기를 기다린다
-            AppendLog($"ERROR {ex.Message}");
-            BeginReconnect(ex.Message);
+            // USB가 빠졌거나 장치가 재부팅된 경우 — 끊고 끝내지 않고 돌아오기를 기다린다.
+            // 재접속은 UI 스레드에서 다뤄야 하므로 디스패처로 넘긴다. 이 루프는 여기서 끝나므로
+            // 완료를 기다릴 필요가 없다.
+            _ = _dispatcher.BeginInvoke(() =>
+            {
+                if (!ReferenceEquals(_device, device)) return;   // 이미 정리된 링크라면 무시
+                AppendLog($"ERROR {ex.Message}");
+                BeginReconnect(ex.Message);
+            });
         }
-        finally
-        {
-            _polling = false;
-        }
+    }
+
+    /// <summary>백그라운드가 모아둔 최신 값을 화면에 반영한다. 60 ms 마다 한 번.</summary>
+    private void PublishLiveReading()
+    {
+        if (_live is not { } reading) return;
+
+        MeasuredVolts = reading.Volts;
+        MeasuredAmps = reading.Amps;
+        OutputEnabled = reading.OutputEnabled;
+        Regulation = reading.Regulation;
+        InputState = reading.InputState;
+        InputVolts = reading.InputVolts;
     }
 
     private async Task SelectPresetAsync(int presetId)
@@ -807,6 +974,3 @@ public sealed class PresetItem(int id) : ObservableObject
         IsActive = isActive;
     }
 }
-
-/// <summary>Trend 차트 한 점.</summary>
-public sealed record MeasurementSample(DateTime Timestamp, double Volts, double Amps);
