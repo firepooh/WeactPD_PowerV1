@@ -1118,24 +1118,26 @@ public sealed class PresetItem(int id) : ObservableObject
     public double Volts
     {
         get => _volts;
-        private set { if (SetField(ref _volts, value)) OnPropertyChanged(nameof(Summary)); }
+        private set { if (SetField(ref _volts, value)) OnPropertyChanged(nameof(VoltsText)); }
     }
 
     private double _amps;
     public double Amps
     {
         get => _amps;
-        private set { if (SetField(ref _amps, value)) OnPropertyChanged(nameof(Summary)); }
+        private set { if (SetField(ref _amps, value)) OnPropertyChanged(nameof(AmpsText)); }
     }
 
     private bool _isActive;
     public bool IsActive { get => _isActive; set => SetField(ref _isActive, value); }
 
     /// <summary>
-    /// 레일 폭(196 px)에 스크롤바가 생겨도 잘리지 않게 최대한 짧게 — "3.3 V · 0.5 A".
+    /// 숫자와 단위를 분리해 행 간 열 정렬이 가능하게 한다 (XAML SharedSizeGroup).
     /// 장치 최소 전압이 1 V 라 0 V 는 "아직 못 읽음"이므로 값 대신 대시를 보여준다.
     /// </summary>
-    public string Summary => Volts <= 0 ? "—" : $"{Volts:0.##} V · {Amps:0.##} A";
+    public string VoltsText => Volts <= 0 ? "—" : $"{Volts:0.##}";
+
+    public string AmpsText => Volts <= 0 ? "—" : $"{Amps:0.##}";
 
     public void Update(double volts, double amps, bool isActive)
     {

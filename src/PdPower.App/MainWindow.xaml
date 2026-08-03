@@ -114,7 +114,7 @@
                         <!-- 출력 중에는 CanExecute 가 false 라 각 행이 자동으로 흐려진다 -->
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Presets}">
+                        <ItemsControl ItemsSource="{Binding Presets}" Grid.IsSharedSizeScope="True">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:PresetItem}">
                                     <!-- 목업의 프리셋 카드: 행마다 헤어라인 테두리, 활성 행은 액센트 테두리 + 채운 칩 -->
@@ -131,11 +131,39 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Button.Style>
+                                        <!-- 숫자는 오른쪽 정렬, 단위는 분리 — SharedSizeGroup 으로 행 간 열 폭을 맞춘다 -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="PresetVolts" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="PresetAmps" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
+
+                                            <Grid.Resources>
+                                                <!-- 숫자: 진한 색, 활성이면 액센트 -->
+                                                <Style x:Key="PresetNumber" TargetType="TextBlock">
+                                                    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+                                                    <Setter Property="FontSize" Value="11" />
+                                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                                    <Setter Property="TextAlignment" Value="Right" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextRailValueBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource AccentDeepBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                                <!-- 단위: 항상 연한 색 -->
+                                                <Style x:Key="PresetUnit" TargetType="TextBlock">
+                                                    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+                                                    <Setter Property="FontSize" Value="10" />
+                                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                                    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                                </Style>
+                                            </Grid.Resources>
 
                                             <Border Grid.Column="0" Width="26" Height="22" CornerRadius="5">
                                                 <Border.Style>
@@ -164,22 +192,14 @@
                                                 </TextBlock>
                                             </Border>
 
-                                            <!-- 오른쪽 정렬 + 진한 색 — 레일을 좁히면 잘리므로 말줄임 유지 -->
-                                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Margin="8,0,2,0"
-                                                       FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                                       VerticalAlignment="Center" TextAlignment="Right"
-                                                       TextTrimming="CharacterEllipsis">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{StaticResource TextRailValueBrush}" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                <Setter Property="Foreground" Value="{StaticResource AccentDeepBrush}" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                            <TextBlock Grid.Column="2" Text="{Binding VoltsText}"
+                                                       Style="{StaticResource PresetNumber}" />
+                                            <TextBlock Grid.Column="3" Text="V" Margin="3,0,0,0"
+                                                       Style="{StaticResource PresetUnit}" />
+                                            <TextBlock Grid.Column="4" Text="{Binding AmpsText}" Margin="12,0,0,0"
+                                                       Style="{StaticResource PresetNumber}" />
+                                            <TextBlock Grid.Column="5" Text="A" Margin="3,0,2,0"
+                                                       Style="{StaticResource PresetUnit}" />
                                         </Grid>
                                     </Button>
                                 </DataTemplate>
