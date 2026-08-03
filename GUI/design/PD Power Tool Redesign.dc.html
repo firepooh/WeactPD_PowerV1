@@ -27,6 +27,79 @@
   </div>
 
   <div style="display:flex; flex-wrap:wrap; gap:64px; align-items:flex-start;">
+    <div id="2b" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; align-items:baseline; gap:12px;">
+        <div style="font:700 13px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:6px 9px; border-radius:5px;">2b</div>
+        <div style="font-size:18px; font-weight:600; color:#1A1917;">Mini mode</div>
+        <div style="font-size:14px; color:#8A867C;">440 × 150 · 항상 위 · 1단 측정 / 2단 프리셋·설정·출력</div>
+      </div>
+
+      <div style="width:440px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:10px; box-shadow:0 18px 44px -26px rgba(20,20,18,0.4);">
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #EDEDEA; border-radius:9px 9px 0 0; background:#FAFAF9;">
+          <div style="width:7px; height:7px; flex:none; border-radius:50%; background:{{ linkDot }};"></div>
+          <div style="flex:1; min-width:0; font:500 11px/1 'JetBrains Mono',monospace; color:#57574F;">{{ port }} · {{ statusText }}</div>
+          <div title="핀 고정" style="width:20px; height:20px; border-radius:5px; border:1px solid #E4E4E1; display:flex; align-items:center; justify-content:center; font-size:9px; color:#8A8A82; cursor:pointer;">▲</div>
+          <div title="전체 창으로" style="width:20px; height:20px; border-radius:5px; border:1px solid #E4E4E1; display:flex; align-items:center; justify-content:center; font-size:9px; color:#8A8A82; cursor:pointer;">⤢</div>
+        </div>
+
+        <div style="display:flex; border-bottom:1px solid #EDEDEA;">
+          <div style="flex:1; min-width:0; padding:12px 12px; border-right:1px solid #F2F2F0; display:flex; align-items:baseline; gap:4px;">
+            <span style="font:400 30px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ voltage }}</span>
+            <span style="font:400 12px/1 'JetBrains Mono',monospace; color:#8A8A82;">V</span>
+          </div>
+          <div style="flex:1; min-width:0; padding:12px 12px; border-right:1px solid #F2F2F0; display:flex; align-items:baseline; gap:4px;">
+            <span style="font:400 30px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ current }}</span>
+            <span style="font:400 12px/1 'JetBrains Mono',monospace; color:#8A8A82;">A</span>
+          </div>
+          <div style="flex:1; min-width:0; padding:12px 12px; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+            <div style="display:flex; align-items:baseline; gap:4px;">
+              <span style="font:400 15px/1 'Chivo Mono','JetBrains Mono',monospace; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ power }}</span>
+              <span style="font:400 10px/1 'JetBrains Mono',monospace; color:#A8A8A0;">W</span>
+            </div>
+            <div style="display:flex; align-items:baseline; gap:4px;">
+              <span style="font:400 15px/1 'Chivo Mono','JetBrains Mono',monospace; font-variant-numeric:tabular-nums; color:#57574F;">{{ energy }}</span>
+              <span style="font:400 10px/1 'JetBrains Mono',monospace; color:#A8A8A0;">Wh</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; padding:10px 12px;">
+          <div style="position:relative; flex:none; width:96px;">
+            <div onClick="{{ toggleMiniPresets }}" style="display:flex; align-items:center; gap:6px; padding:6px 8px; border:1px solid #DCDCD8; border-radius:6px; background:#FFFFFF; cursor:pointer; user-select:none;">
+              <span style="flex:1; font:600 11px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ activePreset }}</span>
+              <span style="font-size:8px; color:#A8A8A0;">▾</span>
+            </div>
+            <sc-if value="{{ miniPresetsOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute; left:0; width:186px; top:100%; margin-top:4px; z-index:20; display:flex; flex-direction:column; gap:2px; padding:4px; border:1px solid #DCDCD8; border-radius:6px; background:#FFFFFF; box-shadow:0 12px 28px -12px rgba(20,20,18,0.35);">
+                <sc-for list="{{ presets }}" as="p" hint-placeholder-count="5">
+                  <div onClick="{{ p.load }}" style="display:flex; align-items:center; gap:8px; padding:5px 7px; border-radius:4px; background:{{ p.bg }}; cursor:{{ p.cursor }}; opacity:{{ p.opacity }}; white-space:nowrap;">
+                    <span style="flex:none; width:24px; font:700 10px/1 'JetBrains Mono',monospace; color:{{ p.dim }};">{{ p.label }}</span>
+                    <span style="flex:1; text-align:right; font:500 11px/1 'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; color:{{ p.fg }};">{{ p.vTxt }} V · {{ p.iTxt }} A</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <div onWheel="{{ wheelV }}" style="flex:1; min-width:0; display:flex; align-items:center; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:6px; overflow:hidden; cursor:ns-resize; user-select:none;">
+            <div onClick="{{ decV }}" style="width:18px; text-align:center; font-size:12px; color:#8A8A82; border-right:1px solid #EDEDEA; padding:5px 0; cursor:pointer;">−</div>
+            <div style="flex:1; text-align:center; font:400 12px/1 'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; color:#1A1A18; padding:5px 0;">{{ setV }}</div>
+            <div onClick="{{ incV }}" style="width:18px; text-align:center; font-size:12px; color:#8A8A82; border-left:1px solid #EDEDEA; padding:5px 0; cursor:pointer;">+</div>
+          </div>
+          <div onWheel="{{ wheelI }}" style="flex:1; min-width:0; display:flex; align-items:center; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:6px; overflow:hidden; cursor:ns-resize; user-select:none;">
+            <div onClick="{{ decI }}" style="width:18px; text-align:center; font-size:12px; color:#8A8A82; border-right:1px solid #EDEDEA; padding:5px 0; cursor:pointer;">−</div>
+            <div style="flex:1; text-align:center; font:400 12px/1 'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; color:#1A1A18; padding:5px 0;">{{ setI }}</div>
+            <div onClick="{{ incI }}" style="width:18px; text-align:center; font-size:12px; color:#8A8A82; border-left:1px solid #EDEDEA; padding:5px 0; cursor:pointer;">+</div>
+          </div>
+
+          <div style="display:flex; flex:none; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:6px; overflow:hidden; user-select:none;">
+            <div onClick="{{ outputOn }}" style="padding:6px 10px; font:600 11px/1.2 'JetBrains Mono',monospace; letter-spacing:0.06em; background:{{ onBg }}; color:{{ onFg }}; cursor:pointer;">ON</div>
+            <div onClick="{{ outputOff }}" style="padding:6px 10px; font:600 11px/1.2 'JetBrains Mono',monospace; letter-spacing:0.06em; background:{{ offBg }}; color:{{ offFg }}; border-left:1px solid #EDEDEA; cursor:pointer;">OFF</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="2a" style="display:flex; flex-direction:column; gap:14px;">
       <div style="display:flex; align-items:baseline; gap:12px;">
         <div style="font:700 13px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:6px 9px; border-radius:5px;">2a</div>
@@ -168,9 +241,12 @@
               <div style="font-size:16px; font-weight:600; color:#1A1A18;">Monitor</div>
               <div style="font-size:13px; color:#8A8A82;">WeAct PD Power Mini V1 BUCK</div>
             </div>
-            <div style="display:flex; align-items:center; gap:12px;">
+            <div style="display:flex; align-items:center; gap:10px;">
               <div style="display:flex; align-items:center; gap:7px; padding:5px 11px; border-radius:6px; border:1px solid #E4E4E1; color:#3D3D38; font-size:12px; font-weight:600;">
                 <div style="width:6px; height:6px; border-radius:50%; background:oklch(0.68 0.14 145);"></div>{{ statusText }}
+              </div>
+              <div title="미니 모드" style="display:flex; align-items:center; gap:6px; padding:5px 11px; border-radius:6px; border:1px solid #E4E4E1; color:#57574F; font-size:12px; cursor:pointer;">
+                <div style="width:11px; height:9px; border:1.5px solid #77776F; border-radius:2px;"></div>Mini
               </div>
             </div>
           </div>
@@ -350,7 +426,7 @@ class Component extends DCLogic {
   state = {
     railWidth: 196, collapsed: false, lastWidth: 196,
     devices: [{ ...this.newDevice("COM9"), output: true }],
-    active: 0, portListOpen: false, baud: 115200, graph: true, t: 0
+    active: 0, portListOpen: false, miniPresetsOpen: false, baud: 115200, graph: true, t: 0
   };
 
   dev() { return this.state.devices[this.state.active]; }
@@ -471,6 +547,7 @@ class Component extends DCLogic {
 
   /* 포트 / 디바이스 */
   togglePortList = () => this.setState(s => ({ portListOpen: !s.portListOpen }));
+  toggleMiniPresets = () => this.setState(s => ({ miniPresetsOpen: !s.miniPresetsOpen }));
   addPort = (name) => () => this.setState(s => s.devices[0] && s.devices[0].port === name
     ? { portListOpen: false }
     : { devices: [{ ...this.newDevice(name), connected: false }], active: 0, portListOpen: false });
@@ -586,6 +663,9 @@ class Component extends DCLogic {
         fg: k === d.selected ? "oklch(0.45 0.14 255)" : "#57574F"
       })),
       presetLock: locked ? "LOCKED" : "",
+      miniPresetsOpen: s.miniPresetsOpen,
+      toggleMiniPresets: this.toggleMiniPresets,
+      activePreset: (presetSrc[d.selected] ?? presetSrc[0]).label,
 
       /* PD 입력 */
       pdRequest: d.pdRequest.toFixed(0), pdActual: d.pdActual.toFixed(2),

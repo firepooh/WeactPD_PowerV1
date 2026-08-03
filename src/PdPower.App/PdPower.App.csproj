@@ -19,4 +19,9 @@
     <Resource Include="..\..\GUI\icon\pd-power.ico" Link="Assets\pd-power.ico" />
   </ItemGroup>
 
+  <!-- 측정값 표시 서체 (목업 지정 Chivo Mono, OFL 라이선스 — Fonts\OFL.txt) -->
+  <ItemGroup>
+    <Resource Include="Fonts\ChivoMono-Regular.ttf" />
+  </ItemGroup>
+
 </Project>

@@ -92,9 +92,10 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 
 - 창 1000×680, 좌측 레일 + 우측 메인. 레일: Monitor/Setup/Log 내비, 프리셋 M0–M4,
   PD INPUT, PORT 카드. 메인: 측정 3열 + 스테퍼·ON│OFF·CV/CC 배지, Trend 차트, 푸터.
-- 측정 셀은 단어 라벨 대신 **V / A / W / Wh 약어** + 대형 숫자(58px). 셋째 셀은
-  전력(W)과 **누적 전력량(Wh)** 2단 — Wh 는 폴링마다 `V×A×Δt` 적분, `RST` 로 초기화
-  (Trend 히스토리는 유지), MCP `get_status` 의 `energyWh` 로도 노출.
+- 측정 셀은 단어 라벨 대신 **V / C / P / E 약어** + 대형 숫자(58px, 내장 Chivo Mono —
+  목업 68px 은 6글자("11.999")가 셀 폭을 넘어 58px 로 고정). 셋째 셀은 전력(W)과
+  **누적 전력량(Wh)** 2단 — Wh 는 폴링마다 `V×A×Δt` 적분, `RST` 로 초기화(Trend
+  히스토리는 유지), MCP `get_status` 의 `energyWh` 로도 노출.
 - 스테퍼는 휠 ±1 / Ctrl+휠 ±0.1, 변경 즉시 장치 반영.
 - 치수·색상의 근거는 [`GUI/design/`](GUI/design/) 의 HTML 목업이다.
   **요약 스펙만 보고 구현하면 구조가 틀어진다 — 반드시 목업을 렌더링해서 볼 것.**

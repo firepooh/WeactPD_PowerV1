@@ -61,14 +61,17 @@
     </Style>
 
     <!--
-        측정값 서체 — 목업은 Chivo Mono. 시스템에 없으면 폭이 비슷한 모노로 내려간다.
-        셀 캡션(V/A/W/Wh)이 단위를 대신하므로 대형 숫자에는 단위를 붙이지 않는다.
+        측정값 서체 — 목업이 지정한 Chivo Mono 를 앱에 내장한다(설치 여부 무관, OFL).
+        셀 캡션(V/C/P/E)이 종류를 말하므로 V/C 대형 숫자에는 단위를 붙이지 않는다.
     -->
-    <FontFamily x:Key="DisplayFont">Chivo Mono, JetBrains Mono, Cascadia Mono, Consolas, Courier New</FontFamily>
+    <!-- Theme.xaml 은 Themes\ 에 있으므로 상대 경로가 어긋난다 — 어셈블리 절대 경로로 지정 -->
+    <FontFamily x:Key="DisplayFont">/PdPower.App;component/Fonts/#Chivo Mono</FontFamily>
 
     <!--
-        V/A 대형 측정값. 목업은 68px(Chivo Mono 기준)이지만 폴백 폰트(Consolas 등)는
-        글자폭이 넓어 "11.999" 가 셀을 넘친다 — 최악 케이스가 들어가는 58px 로 맞춘다.
+        V/C 대형 측정값. 목업은 68px 이지만 Chivo Mono(자폭 0.6em)로도 6글자("11.999")가
+        셀 폭 216px 을 넘는다(245px) — 목업 데모가 5글자였을 뿐. "20.000" 까지 들어가는
+        58px 로 고정한다. Viewbox 축소는 TextFormattingMode=Display 와 겹치면 렌더가
+        깨지므로 쓰지 않는다.
     -->
     <Style x:Key="MeasureValueBig" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
@@ -76,7 +79,7 @@
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     </Style>
 
-    <!-- W/Wh 2단 행 값: 34px -->
+    <!-- P/E 2단 행 값: 34px -->
     <Style x:Key="MeasureValueMid" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
         <Setter Property="FontSize" Value="34" />

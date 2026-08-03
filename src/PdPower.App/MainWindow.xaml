@@ -422,7 +422,7 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Margin="18,14,18,12">
-                            <TextBlock Text="A" Style="{StaticResource CellCaption}" />
+                            <TextBlock Text="C" Style="{StaticResource CellCaption}" />
                             <TextBlock Text="{Binding MeasuredAmps, StringFormat={}{0:F3}}"
                                        Style="{StaticResource MeasureValueBig}" />
                         </StackPanel>
@@ -471,7 +471,7 @@
                         <!-- 전력(W) + 누적 전력량(Wh) 상하 2단 — 목업 개정판 -->
                         <StackPanel Grid.Row="0" Margin="18,14,18,12">
                             <Grid>
-                                <TextBlock Text="W" Style="{StaticResource CellCaption}" Margin="0"
+                                <TextBlock Text="P" Style="{StaticResource CellCaption}" Margin="0"
                                            VerticalAlignment="Bottom" />
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <TextBlock Text="{Binding MeasuredWatts, StringFormat={}{0:F2}}"
@@ -485,7 +485,7 @@
 
                             <Grid>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                                    <TextBlock Text="Wh" Style="{StaticResource CellCaption}" Margin="0"
+                                    <TextBlock Text="E" Style="{StaticResource CellCaption}" Margin="0"
                                                VerticalAlignment="Center" />
                                     <!-- 누적값만 초기화 — Trend 히스토리는 유지 -->
                                     <Button Content="RST" Margin="8,0,0,0" Padding="6,2"
