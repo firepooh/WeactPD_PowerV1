@@ -19,7 +19,7 @@ namespace PdPower.App.ViewModels;
 /// 걸린다. 그래서 <b>수집은 백그라운드, 화면 반영은 <see cref="UiPublishInterval"/> 로 묶어서</b>
 /// 처리한다.
 /// </remarks>
-public sealed class MainViewModel : ObservableObject, IDisposable
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     /// <summary>Log 탭이 보관하는 줄 수.</summary>
     public const int LogCapacity = 500;
@@ -99,6 +99,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ShowLogCommand = new RelayCommand(_ => ActiveView = AppView.Log);
         OcpOnCommand = new AsyncRelayCommand(_ => SetOcpAsync(true), _ => IsConnected && !IsOcpEnabled, ReportError);
         OcpOffCommand = new AsyncRelayCommand(_ => SetOcpAsync(false), _ => IsConnected && IsOcpEnabled, ReportError);
+
+        // MCP 서버는 장치 연결과 무관하게 켤 수 있다 — 도구가 "연결 안 됨"을 스스로 보고한다
+        McpOnCommand = new AsyncRelayCommand(_ => SetMcpEnabledAsync(true), _ => !IsMcpEnabled, ReportError);
+        McpOffCommand = new AsyncRelayCommand(_ => SetMcpEnabledAsync(false), _ => IsMcpEnabled, ReportError);
 
         _uiPublishTimer = new DispatcherTimer { Interval = UiPublishInterval };
         _uiPublishTimer.Tick += (_, _) => PublishLiveReading();
@@ -1076,6 +1080,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         NudgePdCommand.RaiseCanExecuteChanged();
         SetPdVoltageCommand.RaiseCanExecuteChanged();
         SaveConfigCommand.RaiseCanExecuteChanged();
+        McpOnCommand.RaiseCanExecuteChanged();
+        McpOffCommand.RaiseCanExecuteChanged();
     }
 
     private static int ToInt(object? parameter)
@@ -1084,7 +1090,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static double ToDouble(object? parameter)
         => parameter is null ? 0 : Convert.ToDouble(parameter, CultureInfo.InvariantCulture);
 
-    public void Dispose() => Disconnect();
+    public void Dispose()
+    {
+        _ = _mcpHost?.DisposeAsync();   // 앱 종료 경로 — 완료를 기다릴 필요 없다
+        _mcpHost = null;
+        Disconnect();
+    }
 }
 
 /// <summary>레일 내비가 전환하는 화면. 목업의 접힌 레일 코드 MO / ST / LG 에 대응한다.</summary>

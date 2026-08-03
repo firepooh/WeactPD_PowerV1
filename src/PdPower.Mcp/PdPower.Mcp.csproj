@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    Kestrel 을 앱 안에 띄우기 위한 프레임워크 참조. 이 참조는 소비자(PdPower.App)에도
+    전이되므로, framework-dependent 배포본은 .NET Desktop Runtime 외에
+    ASP.NET Core Runtime 도 필요해진다. standalone 배포본은 영향 없음.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,5 +1,7 @@
 # WeactPD_PowerV1 — WeAct PD Power Mini V1 (Buck) PC 제어 프로그램
 
+**한국어** (이 문서) · [English](README.en.md)
+
 [WeAct Studio PD Power Mini V1 BUCK](https://github.com/WeActStudio/WeActStudio.PDPowerMiniV1-Buck) 장치를 PC에서 제어/모니터링하는 **Windows 10 C# (WPF)** 데스크톱 애플리케이션 개발 프로젝트.
 
 ## 1. 프로젝트 개요
@@ -13,6 +15,7 @@
 | 차트 | LiveCharts2 또는 ScottPlot (듀얼 Y축: 전압/전류) |
 | 디자인 원본 | [`GUI/design/PD Power Tool Redesign.dc.html`](GUI/design/PD%20Power%20Tool%20Redesign.dc.html), 구현 스펙: [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) |
 | 프로토콜 원본 | [`docs/protocol/`](docs/protocol/) (제조사 xlsx 2종 + Python 예제) |
+| AI 제어 | 내장 MCP 서버 — Setup 에서 켜면 Claude 등 AI 가 장치를 읽고 제어 (§4) |
 
 ### 실장비 검증 (2026-07-27, COM9 / USB CDC)
 
@@ -188,7 +191,62 @@ CSV 열: `timestamp,volts,amps,watts,regulation,output_enabled` (타임스탬프
 
 ![Setup 화면 — OCP on/off](docs/images/app-setup.png)
 
-## 4. 솔루션 구조
+## 4. AI 제어 — 내장 MCP 서버
+
+Setup 의 **AI control server** 를 켜면 앱 프로세스 안에서 MCP(Model Context Protocol) 서버가
+떠서, Claude 같은 AI 클라이언트가 이 앱을 통해 장치를 읽고 제어할 수 있다.
+
+### 왜 앱 안에 있나
+
+COM 포트는 한 프로세스만 열 수 있다. 별도 MCP 서버 프로세스는 GUI 가 떠 있는 동안 포트에
+접근할 수 없으므로, **"앱을 쓰면서 동시에 AI 제어"가 되려면 서버가 포트를 쥔 GUI 프로세스
+안에 살아야 한다.** 공식 C# SDK
+([`ModelContextProtocol.AspNetCore`](https://www.nuget.org/packages/ModelContextProtocol.AspNetCore))
+의 Streamable HTTP 를 `http://localhost:5115` 에 바인딩한다 — localhost 전용, stateless 모드.
+
+클라이언트 등록 (Claude Code 기준, 서버를 켠 상태에서):
+
+```bash
+claude mcp add --transport http pdpower http://localhost:5115
+```
+
+### 도구 10종
+
+| 도구 | 종류 | 동작 |
+|---|---|---|
+| `get_status` | 읽기 | 연결 여부, 출력 on/off, CV/CC/OC, 실측 V/A/W, 입력(PD) 상태, 활성 프리셋과 설정값 |
+| `get_settings` | 읽기 | 프리셋 M0–M4, OCP, 밝기, PD 요청 전압 — **장치에서 되읽으므로 노브로 바꾼 값도 반영** |
+| `get_history_stats` | 읽기 | Trend 에 보이는 구간의 V/A/W 각 min/avg/max |
+| `set_output` | 제어 | 출력 on/off |
+| `set_setpoint` | 제어 | 활성 프리셋의 전압/전류 — 한쪽만 지정 가능 |
+| `select_preset` | 제어 | 프리셋 전환 — **출력 중에는 거부** (GUI 와 같은 규칙) |
+| `set_ocp` | 제어 | 과전류 보호 on/off |
+| `set_pd_voltage` | 제어 | PD 요청 전압 (9/12/15/20 V, 출력 중 거부) |
+| `set_brightness` | 제어 | LCD 밝기 1–100 % (슬라이더 디바운스를 우회해 즉시 기록) |
+| `save_config` | 제어 | `SYSTEM_CONFIG_SAVE`(0x44) |
+
+### 구조와 안전장치
+
+- 게이트웨이는 [`MainViewModel.Mcp.cs`](src/PdPower.App/ViewModels/MainViewModel.Mcp.cs).
+  제어 요청은 디스패처로 UI 스레드에 마샬링해 **GUI 버튼과 같은 코드 경로**를 탄다 —
+  화면·UNSAVED 상태가 함께 갱신되고, 장치 트랜잭션은 기존 세마포어로 폴링 루프와 직렬화된다.
+- AI 가 보낸 명령은 전부 Log 화면에 `[MCP]` 접두어로 남는다.
+- 범위 검증은 GUI 와 동일 (전압 1–20 V / 전류 0–3 A 클램프, PD 는 표준 단계만).
+- 서버는 기본 꺼짐, localhost 바인딩만 — 외부 네트워크에서 접근할 수 없다.
+- 실기기 검증 완료 (2026-08-03, COM9): 도구 10종 호출, 출력 on 시 12.004 V 실측,
+  출력 중 프리셋 전환·잘못된 PD 전압이 명확한 한국어 메시지로 거부되는 것까지 확인.
+
+### 구현 주의 (MCP SDK 2.0)
+
+- **nullable 파라미터에도 기본값(`= null`)을 붙여야 스키마에서 선택 인자가 된다.**
+  `double? volts` 만 쓰면 required 로 잡혀서, 인자를 생략한 호출이 도구 진입 전에
+  바인딩 오류로 죽는다 (실측: `set_setpoint {"volts":5}` 가 generic error 로 실패했다).
+- 도구가 던지는 예외는 `McpException` 이어야 클라이언트가 메시지를 그대로 본다 —
+  일반 예외는 SDK 가 내용을 가린다. 게이트웨이 예외를 도구 계층에서 변환한다.
+- `FrameworkReference Microsoft.AspNetCore.App` 이 App 까지 전이되므로,
+  framework-dependent 배포본은 **ASP.NET Core Runtime 도 필요**해졌다 (standalone 은 무관).
+
+## 5. 솔루션 구조
 
 ```
 WeactPD_PowerV1/
@@ -196,9 +254,10 @@ WeactPD_PowerV1/
 ├─ Directory.Build.props          ← 공유 버전 (VersionPrefix)
 ├─ .githooks/pre-commit           ← 커밋마다 패치 버전 증가
 ├─ .github/workflows/build.yml    ← 빌드·테스트, 태그 시 Release 배포
-├─ README.md                      ← 본 문서
+├─ README.md                      ← 본 문서 (영문판 README.en.md)
 ├─ docs/protocol/                 ← 제조사 프로토콜 원본 (UART/USB xlsx, Python 예제)
 ├─ GUI/design/                    ← 목표 GUI 디자인안 (HTML 목업, C# 구현 스펙, 스크린샷)
+├─ GUI/icon/                      ← 앱 아이콘 원본 (ico + png) — exe·창 아이콘이 여기서 온다
 ├─ src/
 │  ├─ PdPower.Core/               ← 프로토콜 라이브러리 (net8.0)
 │  │  ├─ Protocol/
@@ -211,13 +270,17 @@ WeactPD_PowerV1/
 │  │  ├─ PdPowerDevice.cs         ←   장치 API (SerialPort 요청/응답)
 │  │  └─ PdPowerException.cs
 │  ├─ PdPower.Cli/                ← 실장비 검증 콘솔 도구 (net8.0)
+│  ├─ PdPower.Mcp/                ← MCP 서버 (도구 정의 + Kestrel 호스트, net8.0)
+│  │  ├─ IPdPowerGateway.cs       ←   도구 ↔ 앱 사이 인터페이스 + 응답 DTO
+│  │  ├─ PdPowerMcpTools.cs       ←   AI 에 노출되는 도구 10종
+│  │  └─ McpServerHost.cs         ←   localhost:5115 Streamable HTTP 호스트
 │  └─ PdPower.App/                ← WPF GUI (net8.0-windows, MVVM)
 │     ├─ Themes/Theme.xaml        ←   팔레트 + 컨트롤 템플릿 전체 교체
 │     ├─ Controls/TrendChart.cs   ←   듀얼축 시계열 차트 (직접 렌더링)
-│     ├─ ViewModels/MainViewModel.cs
+│     ├─ ViewModels/MainViewModel.cs      (+ MainViewModel.Mcp.cs — MCP 게이트웨이)
 │     ├─ Converters.cs
 │     └─ MainWindow.xaml
-└─ tests/PdPower.Core.Tests/      ← xUnit — CRC8/프레임 검증 26개
+└─ tests/PdPower.Core.Tests/      ← xUnit 42개 — CRC8/프레임/히스토리 검증
 ```
 
 ### 버전 · 릴리스
@@ -251,7 +314,7 @@ git config core.hooksPath .githooks
 
 | 파일 | 내용 |
 |---|---|
-| `PdPowerTool.exe` | GUI, 단일 exe (~1 MB, .NET 8 Desktop Runtime 필요) |
+| `PdPowerTool.exe` | GUI, 단일 exe (~1 MB, .NET 8 Desktop Runtime + **ASP.NET Core Runtime** 필요 — MCP 서버 때문) |
 | `PdPowerTool-standalone.exe` | GUI, 런타임 포함 (~70 MB, 아무 PC에서나 실행) |
 | `PdPowerCli.exe` | CLI, 단일 exe (.NET 8 Runtime 필요) |
 | `PdPowerCli-standalone.exe` | CLI, 런타임 포함 |
@@ -300,7 +363,7 @@ dotnet run --project src/PdPower.App
 - `READ_INPUT_STATE`(0x8A)는 PD Power Mini V1 펌웨어 **v1.0.2.0 이상**에서만 지원 —
   실패를 정상 흐름으로 처리한다.
 
-## 5. 개발 로드맵
+## 6. 개발 로드맵
 
 - [x] **PdPower.Core**: 프로토콜 라이브러리
   - [x] 프레임 빌더/파서 (USB CDC `0x0A` 종단 + UART CRC8 모드)
@@ -325,6 +388,8 @@ dotnet run --project src/PdPower.App
   - [x] Log 화면 (원시 프레임 트레이스 토글)
   - [x] Setup 화면 — OCP on/off, LCD 밝기 슬라이더, 설정 저장(`0x44`) + 미저장 표시
   - [x] USB 단절 시 자동 재접속 대기 (아래 참조)
+  - [x] 내장 MCP 서버 — AI 로 장치 읽기/제어, Setup 토글, `[MCP]` 로그 (§4)
+  - [x] 앱·CLI exe 아이콘 + 창 타이틀바 아이콘 (`GUI/icon/pd-power.ico`)
   - [ ] Setup 나머지: 오프셋 보정, 방전(읽기 명령 없음에 유의)
   - [ ] Setup 유지보수: 재부팅(`0x40`), 공장 초기화(`0x45`) — `0xC7` 교정값 백업 기능을 먼저 붙일 것
   - [ ] 미연결 시 CV 배지가 뜨는 문제 (기본값이 `CV` 라 장치 없이도 표시됨)
@@ -336,12 +401,12 @@ dotnet run --project src/PdPower.App
   - [ ] 전력(W) 시리즈 — 3번째 축을 어디에 둘지 결정 필요
 - [ ] 설치본 패키징
 
-## 6. 참고 링크
+## 7. 참고 링크
 
 - 제조사 저장소: <https://github.com/WeActStudio/WeActStudio.PDPowerMiniV1-Buck>
 - 프로토콜 Python 예제: [`docs/protocol/com_pdpower.py`](docs/protocol/com_pdpower.py)
 
-## 7. 주의 사항
+## 8. 주의 사항
 
 - `INPUT_PD_VOLTAGE` 변경은 **출력 OFF + 출력전압 5 V 미만**일 때만 적용됨
 - 3 A 연속 출력은 방열 보강 필요 (2 A까지는 상시 가능)
@@ -353,7 +418,7 @@ dotnet run --project src/PdPower.App
 - 프리셋·PD 전압 등 쓰기 값은 휘발성 — `SYSTEM_CONFIG_SAVE` 없이는 전원 재인가 시 소실
 - UART 직결 시 3.3 V 레벨, 외부 UART 칩은 역전류 보호 필요
 
-## 8. 폴링 성능 실측 (COM9, `PdPower.Cli bench 300`)
+## 9. 폴링 성능 실측 (COM9, `PdPower.Cli bench 300`)
 
 GUI 폴링이 매 주기에 쓰는 읽기 명령 3개의 왕복 시간. 단위 ms.
 
@@ -420,7 +485,7 @@ GUI 폴링이 매 주기에 쓰는 읽기 명령 3개의 왕복 시간. 단위 m
 x축은 항상 선택한 창 전체를 덮으므로, 기록이 짧으면 오른쪽 일부만 채워진 상태로 보인다
 (1h 를 막 선택하면 거의 빈 그래프인 게 정상이다).
 
-## 9. 재접속 대기 (USB 단절 복구)
+## 10. 재접속 대기 (USB 단절 복구)
 
 폴링 중 통신이 실패하면 연결을 버리지 않고 **같은 포트로 돌아오기를 기다린다.**
 장치 재부팅이나 케이블 접촉 불량으로 CDC 포트가 잠깐 사라지는 상황을 흡수한다.
@@ -444,7 +509,7 @@ x축은 항상 선택한 창 전체를 덮으므로, 기록이 짧으면 오른�
 2. `SYSTEM_RESET`(`0x40`)을 보낸다 — 재부팅하면서 CDC 포트가 사라진다.
    단, 저장하지 않은 휘발성 설정은 플래시 값으로 되돌아간다.
 
-## 10. OCP 실측 결과 (12 V, 약 21 Ω 부하, COM9)
+## 11. OCP 실측 결과 (12 V, 약 21 Ω 부하, COM9)
 
 `PdPower.Cli test-ocp 12.0 0.2` 로 전류 제한을 부하 전류보다 낮게 두고 측정했다.
 

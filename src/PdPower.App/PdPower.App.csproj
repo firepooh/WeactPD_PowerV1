@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdPower.Core\PdPower.Core.csproj" />
+    <ProjectReference Include="..\PdPower.Mcp\PdPower.Mcp.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -10,6 +11,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>..\..\GUI\icon\pd-power.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!-- 창 타이틀바·작업 표시줄 아이콘용. 원본은 GUI\icon 하나만 유지한다. -->
+  <ItemGroup>
+    <Resource Include="..\..\GUI\icon\pd-power.ico" Link="Assets\pd-power.ico" />
+  </ItemGroup>
 
 </Project>

@@ -8,6 +8,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="PD Power Tool" Height="610" Width="1000" MinHeight="540" MinWidth="860"
+        Icon="pack://application:,,,/Assets/pd-power.ico"
         Background="{StaticResource SurfaceBrush}"
         Foreground="{StaticResource TextBrush}"
         FontSize="13" FontFamily="Segoe UI"
@@ -912,6 +913,100 @@
                                            FontFamily="{StaticResource MonoFont}" FontSize="13"
                                            Text="{Binding BrightnessPercent, StringFormat={}{0}%}" />
                             </StackPanel>
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,14" />
+
+                        <!-- AI 제어 — 앱 내장 MCP 서버 (장치 명령이 아니라 앱 기능) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="AI control server" FontSize="13"
+                                               Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="MCP" Style="{StaticResource MicroMono}" Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           Text="Claude 같은 AI가 이 앱을 통해 장치를 읽고 제어할 수 있게 합니다. localhost 전용이며, AI가 보낸 명령은 Log 화면에 [MCP] 로 남습니다." />
+                                <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextMutedBrush}">
+                                    <Run Text="{Binding McpEndpoint, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" />
+                                    <Run Text="— 클라이언트 등록:" />
+                                </TextBlock>
+                                <TextBlock Margin="0,2,0,0" FontSize="11" FontFamily="{StaticResource MonoFont}"
+                                           TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}">
+                                    <Run Text="claude mcp add --transport http pdpower " /><Run Text="{Binding McpEndpoint, Mode=OneWay}" />
+                                </TextBlock>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Style="{StaticResource StepperPill}" Width="132"
+                                    VerticalAlignment="Center">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" CornerRadius="6,0,0,6">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMcpEnabled}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Button Content="ON" Command="{Binding McpOnCommand}"
+                                                AutomationProperties.AutomationId="McpOnButton">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMcpEnabled}" Value="True">
+                                                            <Setter Property="Foreground" Value="White" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Border>
+
+                                    <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+
+                                    <Border Grid.Column="2" CornerRadius="0,6,6,0">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMcpEnabled}" Value="True">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Button Content="OFF" Command="{Binding McpOffCommand}"
+                                                AutomationProperties.AutomationId="McpOffButton">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMcpEnabled}" Value="False">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Border>
+                                </Grid>
+                            </Border>
                         </Grid>
 
                         <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" Margin="0,14" />
