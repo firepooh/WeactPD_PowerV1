@@ -2,113 +2,80 @@
 
 **한국어** (이 문서) · [English](README.en.md)
 
-[WeAct Studio PD Power Mini V1 BUCK](https://github.com/WeActStudio/WeActStudio.PDPowerMiniV1-Buck) 장치를 PC에서 제어/모니터링하는 **Windows 10 C# (WPF)** 데스크톱 애플리케이션 개발 프로젝트.
+[WeAct Studio PD Power Mini V1 BUCK](https://github.com/WeActStudio/WeActStudio.PDPowerMiniV1-Buck)
+장치를 PC에서 제어/모니터링하는 **Windows C# (WPF, .NET 8)** 데스크톱 애플리케이션.
 
-## 1. 프로젝트 개요
+## 1. 개요
 
 | 항목 | 내용 |
 |---|---|
-| 대상 장치 | WeAct Studio PD Power Mini V1 BUCK (출력 1–20 V / 0.05–3 A) |
-| 통신 방식 | USB CDC 가상 시리얼 포트 (기본) / UART (DP→TX, DM→RX, 3.3 V, CRC8) |
-| 개발 환경 | Windows 10/11, Visual Studio 2022, .NET 8 (WPF) |
-| 시리얼 | `System.IO.Ports.SerialPort` |
-| 차트 | LiveCharts2 또는 ScottPlot (듀얼 Y축: 전압/전류) |
-| 디자인 원본 | [`GUI/design/PD Power Tool Redesign.dc.html`](GUI/design/PD%20Power%20Tool%20Redesign.dc.html), 구현 스펙: [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) |
+| 대상 장치 | WeAct PD Power Mini V1 BUCK (출력 1–20 V / 0.05–3 A) |
+| 통신 | USB CDC 가상 시리얼 (기본) / UART (3.3 V, CRC8) — `System.IO.Ports` |
+| 디자인 원본 | [`GUI/design/`](GUI/design/) (HTML 목업 + C# 스펙) — 제조사 예제 툴이 아니라 자체 디자인 |
 | 프로토콜 원본 | [`docs/protocol/`](docs/protocol/) (제조사 xlsx 2종 + Python 예제) |
 | AI 제어 | 내장 MCP 서버 — Setup 에서 켜면 Claude 등 AI 가 장치를 읽고 제어 (§4) |
 
-### 실장비 검증 (2026-07-27, COM9 / USB CDC)
-
-CLI(`selftest`)와 WPF 앱 양쪽에서 아래를 실제로 확인:
-
-```
-장치명    : WeAct Studio PD Power Mini V1 BUCK
-펌웨어    : V1.0.2.0_6a997d9a
-시리얼    : acde8409ccd9
-입력      : PD 20.111 V (PD 요청 20.0 V)
-활성설정  : M4 = 5.000 V / 1.000 A
-프리셋    : M0 1.0V/0.2A · M1 3.3V/0.5A · M2 5.0V/1.0A · M3 9.0V/2.0A · M4 5.0V/1.0A
-```
-
-읽기 계열 명령(WHO_AM_I, VERSION, SERIAL_NUM, OUTPUT_STATE, OUTPUT_ID, OUTPUT_DATA,
-OUTPUT_DISPLAY, OCP_EN, OFFSET_EN, BRIGHTNESS, INPUT_STATE)은 전부 실장비 응답 확인 완료.
-쓰기 계열은 출력 단자에 전압이 인가되므로 미검증 — `PdPower.Cli` 로 직접 확인할 수 있다.
+읽기·쓰기 명령 전부와 MCP 도구 10종을 실장비(COM9, 펌웨어 `V1.0.2.0_6a997d9a`)로 검증했다.
+아래 실측 수치(§9–11)도 모두 이 장비 기준.
 
 ## 2. 통신 프로토콜 요약
 
-### 2.1 공통 사항
+- 명령 1바이트가 프레임 선두, **읽기 명령은 `0x80` 을 OR** (쓰기 `0x04` → 읽기 `0x84`).
+- **USB CDC**: 종단 `0x0A`. **UART**: 종단 대신 CRC8 (다항식 `0x31`, 초기값 `0xFF`, MSB-first).
+- 멀티바이트는 **리틀 엔디언**. 응답도 같은 구조 `[cmd|0x80][payload...][0x0A|crc8]`.
+- 문자열 응답은 CDC `[cmd][ascii...][0x0A]`, UART `[cmd][len][ascii...][crc8]`.
 
-- 명령 1바이트가 프레임 선두. **읽기 명령은 `0x80` 비트를 OR** 한다 (예: OUTPUT_DATA 쓰기 `0x04`, 읽기 `0x84`).
-- **USB CDC**: 프레임 종단 바이트 `0x0A`. 보레이트 무관 (가상 COM).
-- **UART**: 종단 대신 **CRC8** 1바이트 (다항식 `0x31`, 초기값 `0xFF`, MSB-first bit 단위 처리). 보레이트 9600–460800 (장치 설정).
-- 멀티바이트 값은 **리틀 엔디언** (`l8` = 하위, `h8` = 상위).
-- 장치 응답도 동일 구조: `[cmd(0x80|x)] [payload...] [0x0A 또는 crc8]`.
-- 문자열 응답(WHO_AM_I/VERSION/SERIAL)은 USB CDC에서 `[cmd][ascii...][0x0A]`, UART에서는 `[cmd][length][ascii...][crc8]`.
-
-### 2.2 쓰기 명령 (PC → 장치)
+### 2.1 쓰기 명령 (PC → 장치)
 
 | 명령 | Head | 페이로드 | 비고 |
 |---|---|---|---|
-| OUTPUT_EN | `0x02` | `x` | **`1=enable`** (실측 확정). xlsx의 `0=enable` 주석은 오류 — 아래 참조 |
-| OUTPUT_ID | `0x03` | `x` | 프리셋 그룹 M0–M4 (0–4) |
+| OUTPUT_EN | `0x02` | `x` | **`1=enable`** (실측 확정 — xlsx 의 `0=enable` 주석은 오류, §8) |
+| OUTPUT_ID | `0x03` | `x` | 프리셋 M0–M4 (0–4) |
 | OUTPUT_DATA | `0x04` | `id, v_l8, v_h8, i_l8, i_h8` | 전압 mV, 전류 mA |
 | OUTPUT_OCP_EN | `0x06` | `x` | 과전류 보호 |
 | OUTPUT_OFFSET_EN | `0x07` | `x` | 오프셋 보정 |
 | BRIGHTNESS | `0x08` | `x` | 1–100 |
 | OUTPUT_DISCHARGE_EN | `0x09` | `x` | 방전 기능 |
-| INPUT_PD_VOLTAGE | `0x0A` | `v_l8, v_h8` | 단위 0.1 V, 8 V 이상. 출력 OFF & 출력전압 < 5 V 조건에서만 적용 |
+| INPUT_PD_VOLTAGE | `0x0A` | `v_l8, v_h8` | 0.1 V 단위, ≥8 V. 출력 OFF & Vout<5 V 일 때만 적용 |
 | SYSTEM_RESET | `0x40` | — | |
-| SYSTEM_CONFIG_SAVE | `0x44` | — | 아래 6가지를 한 번에 플래시 저장 (개별 선택 불가) |
+| SYSTEM_CONFIG_SAVE | `0x44` | — | 아래 6가지를 한 번에 플래시 저장 |
 | SYSTEM_FACTORY_RESET | `0x45` | — | |
 
-> 쓰기 명령 페이로드 값들은 **휘발성(Volatile)** — 전원 재인가 시 소실. 유지하려면 `SYSTEM_CONFIG_SAVE`(0x44) 필요 (GUI Setup 화면의 "Save" 버튼).
+쓰기 값은 전부 **휘발성** — `SYSTEM_CONFIG_SAVE`(0x44, GUI 의 Save 버튼) 없이는 전원 재인가 시
+소실된다. 저장 대상은 `OUTPUT_ID`·`OUTPUT_DATA`·`OCP_EN`·`OFFSET_EN`·`BRIGHTNESS`·
+`INPUT_PD_VOLTAGE` 6가지(개별 선택 불가). 예외:
 
-### SYSTEM_CONFIG_SAVE(`0x44`) 저장 대상
+- `OUTPUT_EN` — 저장 안 됨. 재인가 시 항상 OFF (안전 동작).
+- `OUTPUT_DISCHARGE_EN` — 휘발성인데 저장 목록에도 없어 **영구 설정 불가**.
+- `SYSTEM_LCD_PANEL_TYPE`(`0x46`) — 반대로 **비휘발성**, 즉시 기록.
 
-| 항목 | 명령 | 코드 |
-|---|---|---|
-| 활성 프리셋 번호 | `OUTPUT_ID` | `0x03` |
-| 프리셋 전압 / 전류 | `OUTPUT_DATA` | `0x04` |
-| 과전류 보호 (OCP) | `OUTPUT_OCP_EN` | `0x06` |
-| 출력 오프셋 보정 | `OUTPUT_OFFSET_EN` | `0x07` |
-| LCD 밝기 | `BRIGHTNESS` | `0x08` |
-| PD 요청 전압 | `INPUT_PD_VOLTAGE` | `0x0A` |
+플래시를 되읽는 명령은 없다(읽기는 항상 RAM 값). 그래서 GUI 의 `UNSAVED` 는
+**연결 이후 앱이 만든 변경만** 추적한다 — 장치 노브로 바꾼 값은 알 수 없다.
 
-**저장 대상이 아닌 것:**
-
-- `OUTPUT_EN`(`0x02`) — 출력 on/off. 전원 재인가 시 항상 OFF로 시작한다(안전 동작).
-- `OUTPUT_DISCHARGE_EN`(`0x09`) — 휘발성인데 저장 목록에도 없어서 **영구 설정이 불가능하다.**
-  매번 연결 후 다시 보내야 한다.
-- `SYSTEM_LCD_PANEL_TYPE`(`0x46`) — 반대 경우. **비휘발성**이라 `0x44` 없이 즉시 기록된다.
-
-플래시에 저장된 값을 되읽는 명령은 없다. `READ_OUTPUT_DATA` 등은 항상 현재 유효값(RAM)을 준다.
-그래서 GUI 의 `UNSAVED` 표시는 **연결 이후 앱이 만든 변경만** 추적한다 — 장치 노브로 바꾼 값이나
-연결 전 상태는 알 수 없다.
-
-### 2.3 읽기 명령 (PC → 장치 → 응답)
+### 2.2 읽기 명령 (PC → 장치 → 응답)
 
 | 명령 | Head | 응답 페이로드 | 비고 |
 |---|---|---|---|
 | WHO_AM_I | `0x81` | `info(ascii)` | 장치명 |
-| READ_OUTPUT_STATE | `0x82` | `x` | bit0: output en, bit2-1: 01=CC, 10=OC, 00=정상(CV) |
+| READ_OUTPUT_STATE | `0x82` | `x` | bit0: output en, bit2-1: 01=CC, 10=OC, 00=CV |
 | READ_OUTPUT_ID | `0x83` | `x` | 현재 프리셋 ID |
-| READ_OUTPUT_DATA | `0x84` | `id, v_l8, v_h8, i_l8, i_h8` | 요청 시 `id` 1바이트 포함하여 전송 |
-| READ_OUTPUT_DISPLAY | `0x85` | `v_l8, v_h8, i_l8, i_h8` | **실측** 전압(mV)/전류(mA) — 모니터링 폴링용 |
+| READ_OUTPUT_DATA | `0x84` | `id, v_l8, v_h8, i_l8, i_h8` | 요청에 `id` 1바이트 포함 |
+| READ_OUTPUT_DISPLAY | `0x85` | `v_l8, v_h8, i_l8, i_h8` | **실측** 전압/전류 — 폴링용 |
 | READ_OUTPUT_OCP_EN | `0x86` | `x` | |
 | READ_OUTPUT_OFFSET_EN | `0x87` | `x` | |
 | READ_BRIGHTNESS | `0x88` | `x` | |
-| READ_INPUT_STATE | `0x8A` | `state, v_l8, v_h8, pv_l8, pv_h8` | state 코드 아래 표, v=입력전압(mV), pv=PD요청전압(0.1 V) |
+| READ_INPUT_STATE | `0x8A` | `state, v_l8, v_h8, pv_l8, pv_h8` | v=입력전압(mV), pv=PD요청(0.1 V). 펌웨어 v1.0.2.0+ |
 | READ_SYSTEM_VERSION | `0xC2` | `version(ascii)` | |
 | READ_SYSTEM_SERIAL_NUM | `0xC3` | `serial(ascii)` | |
 
-**INPUT_STATE state 코드**: 0=WAIT, 1=WAIT_PD_OK, 2=WAIT_QC_OK, 3=ERR, 4=QC, 5=PD, 6=DC
+**INPUT_STATE 코드**: 0=WAIT, 1=WAIT_PD_OK, 2=WAIT_QC_OK, 3=ERR, 4=QC, 5=PD, 6=DC
 
-### 2.4 CRC8 (UART 모드 전용) — C# 구현
+### 2.3 CRC8 (UART 전용)
 
 ```csharp
 public static byte Crc8(ReadOnlySpan<byte> data)
 {
-    byte crc = 0xFF;                    // 초기값
+    byte crc = 0xFF;
     foreach (byte b in data)
     {
         crc ^= b;
@@ -119,292 +86,136 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 }
 ```
 
-## 3. GUI 설계
+## 3. GUI
 
 ![PdPower.App Monitor 화면 — COM9 실장비 연결](docs/images/app-monitor.png)
 
-목표 GUI는 제조사 예제 툴(PD Power Communication Tool v0.1.3)이 아니라 **자체 디자인안**을 따른다.
-치수·색상의 최종 근거는 목업 HTML [`GUI/design/PD Power Tool Redesign.dc.html`](GUI/design/PD%20Power%20Tool%20Redesign.dc.html)
-이고, 요약 스펙은 [`GUI/design/CSHARP-SPEC.md`](GUI/design/CSHARP-SPEC.md) 다.
-**요약 스펙만 보고 구현하면 팔레트는 맞아도 구조가 틀어진다** — 반드시 목업을 렌더링해서 확인할 것. 핵심:
+- 창 1000×610, 좌측 레일 + 우측 메인. 레일: Monitor/Setup/Log 내비, 프리셋 M0–M4,
+  PD INPUT, PORT 카드. 메인: 측정 3열(V/A/W + 스테퍼·ON│OFF·CV/CC 배지), Trend 차트, 푸터.
+- 스테퍼는 휠 ±1 / Ctrl+휠 ±0.1, 변경 즉시 장치 반영.
+- 치수·색상의 근거는 [`GUI/design/`](GUI/design/) 의 HTML 목업이다.
+  **요약 스펙만 보고 구현하면 구조가 틀어진다 — 반드시 목업을 렌더링해서 볼 것.**
+- WPF 기본 컨트롤 크롬은 디자인과 섞이면 촌스러워서 `Themes/Theme.xaml` 에서 템플릿을 전부
+  교체했다. 색이 바뀌는 버튼은 템플릿이 `Background`/`BorderBrush` 를 `TemplateBinding` 으로
+  받아야 하고(하드코딩하면 호출부 `DataTrigger` 가 무력화된다), 호버는 투명도로 표현한다.
 
-- 창 1000×610, 좌측 레일(접이식 196↔56 px) + 우측 메인 2단 레이아웃
-- **좌측 레일**: Monitor/Log 내비, 프리셋 M0–M4 카드(1클릭 적용·더블클릭 편집·출력 중 잠금), PD INPUT 카드(5/9/12/15/20 V), PORT 카드(COM 선택·연결)
-- **메인**: 측정 스트립 3열(Voltage/Current/Power + Set 스테퍼·Output ON/OFF·CV/CC 배지), 듀얼축 Trend 차트, 푸터(SN·FW·입력 정보)
-- 스테퍼: 휠 ±1 / Ctrl+휠 ±0.1, 범위 1–20 V / 0–3 A, 변경 즉시 장치 반영
-- Trend 시간 범위 1m / 5m / 1h, 측정 주기는 Setup 에서 10 ms 단위로 조절 (기본 250 ms)
-
-### 디자인 재현에서 놓치기 쉬운 것들
-
-목업의 "느낌"은 대부분 아래 구조에서 나온다. WPF 기본 컨트롤을 그대로 두면 Aero 시절 크롬이
-플랫 카드와 섞여 전체가 촌스러워지므로, `Themes/Theme.xaml` 에서 ComboBox·CheckBox·ListBox까지
-전부 템플릿을 교체했다.
-
-| 항목 | 올바른 구조 |
-|---|---|
-| 창 | 외곽 여백 0. 레일은 `#FAFAF9` 면 + 오른쪽 헤어라인, 헤더/푸터도 헤어라인으로 구분 |
-| 측정 셀 | 흰 상단(값) + `#FAFAF9` 하단(제어)을 `#F2F2F0` 헤어라인으로 나눈 2단 |
-| 값 표기 | 32 px 모노 숫자 + 13 px 회색 단위, **베이스라인 정렬** (캡션에 단위를 넣지 않는다) |
-| 스테퍼 | `[− │ 값 │ +]` 를 테두리 하나(radius 7)로 묶고 내부만 헤어라인 |
-| 출력 | 토글 버튼이 아니라 `ON│OFF` 세그먼트, 활성 칸만 액센트로 채움 |
-| 배지 | `CV`/`CC`/`OC` 2글자 (열거형 이름 그대로 쓰면 길어서 깨진다) |
-| Trend | 탭 컨트롤이 아니라 카드 안 섹션 — 제목 + 범례 + 도구 버튼을 한 줄에 |
-| 밀도 | 본문 11–13 px. 기본 WPF 크기를 쓰면 계기판이 아니라 웹 폼처럼 보인다 |
-
-**스타일에서 색을 바꿀 버튼은 템플릿이 `Background`·`BorderBrush` 를 `TemplateBinding` 으로
-받아야 한다.** 하드코딩하면 호출부 `DataTrigger` 가 배경은 못 바꾸고 글자색만 바꿔서 글자가
-사라진다 (nav 버튼·`GhostButton` 에서 각각 한 번씩 겪었다). 그리고 호버는 배경색이 아니라
-투명도로 표현해야 색을 덮어쓴 상태에서도 깨지지 않는다.
-
-Trend 차트는 [`Controls/TrendChart.cs`](src/PdPower.App/Controls/TrendChart.cs) 에서 직접 그린다.
-x축은 인덱스가 아니라 **시각**이고, 점이 화면 폭보다 많으면 픽셀 열마다 최소/최대를 뽑아
-수직선으로 그린다(min/max 데시메이션). 1시간 창의 14,400점을 균등 샘플링으로 700 px 에 넣으면
-스파이크가 사라지는데, 전원 장치 파형에서는 그 스파이크가 정작 보고 싶은 것이다.
-
-### Trend 기능
+### Trend
 
 | 기능 | 동작 |
 |---|---|
-| `1m` `5m` `1h` | 표시 구간. 저장 간격이 따라 조정된다 |
-| `Auto` | Y축을 0부터 피크까지 1/2/2.5/5 단위로 (기본) |
-| `Fit` | Y축을 데이터 최소~최대에 맞춘다 — 12.00 V 부근 리플 관찰용 |
-| **그래프 클릭** | 정지 / 재생 토글. 별도 버튼은 없다 |
-| **축 위에서 휠** | Y축 확대·축소. 플롯 **왼쪽 절반은 전압축**, **오른쪽 절반은 전류축** |
-| `CSV` | 보이는 구간을 그대로 내보낸다 (정지 중이면 정지된 구간) |
-| 커서 | 마우스를 올리면 가장 가까운 샘플의 시각·V·A·W·상태를 읽어준다 |
-| 상태 띠 | 플롯 아래 얇은 띠에 CV/CC/OC·출력 on/off 를 시간순으로 칠한다 |
-| 통계 줄 | 보이는 구간의 V·A·W 각 min/avg/max |
+| `1m` `5m` `1h` | 표시 구간 — 저장 간격이 따라 조정 (§9) |
+| `Auto` / `Fit` | Y축 0–피크 / 데이터 범위 맞춤 (리플 관찰용) |
+| **그래프 클릭** | 정지/재생 토글 — 정지는 잘라낸 창(`MeasurementWindow`)을 붙잡는 방식이라 폴링은 계속된다 |
+| **축 위 휠** | Y축 수동 줌 — 왼쪽 절반 전압축, 오른쪽 절반 전류축. `Auto`/`Fit` 으로 복귀 |
+| `CSV` | 보이는 구간 내보내기 (`timestamp,volts,amps,watts,regulation,output_enabled`) |
+| 커서 / 상태 띠 / 통계 | 가장 가까운 샘플 읽기, CV/CC/OC·출력 시간 띠, 구간 min/avg/max |
 
-**정지는 폴링을 멈추는 게 아니라** 잘라낸 창 한 장(`MeasurementWindow`)을 붙잡는 방식이다.
-링 버퍼가 뒤에서 덮여도 정지 화면이 흔들리지 않고, 해제하면 라이브로 바로 돌아온다.
-
-휠을 돌리면 Y축 방식이 `Manual` 로 바뀌고 `Auto`·`Fit` 버튼이 둘 다 꺼진다. 전환할 때는
-지금 보이는 범위를 그대로 물려받으므로 화면이 튀지 않고, 커서가 가리키는 값을 고정점으로
-확대·축소한다. `Auto` 나 `Fit` 을 누르면 복귀한다.
-
-정지·수동 상태는 **플롯 안에 배지로 표시**한다(`FROZEN · click to resume`, `MANUAL Y`).
-버튼이 없으니 화면에 표시가 없으면 정지된 줄 모른다.
-
-CSV 열: `timestamp,volts,amps,watts,regulation,output_enabled` (타임스탬프는 ISO 8601).
-
-![Log 화면 — 원시 프레임 트레이스](docs/images/app-log.png)
-
-![Setup 화면 — OCP on/off](docs/images/app-setup.png)
+차트([`TrendChart.cs`](src/PdPower.App/Controls/TrendChart.cs))는 직접 렌더링한다.
+x축은 시각이고, 점이 픽셀보다 많으면 **픽셀 열마다 min/max 를 그린다** — 균등 샘플링은
+전원 파형에서 정작 보고 싶은 스파이크를 지워버린다. 정지·수동 상태는 플롯 안 배지로 표시.
 
 ## 4. AI 제어 — 내장 MCP 서버
 
-Setup 의 **AI control server** 를 켜면 앱 프로세스 안에서 MCP(Model Context Protocol) 서버가
-떠서, Claude 같은 AI 클라이언트가 이 앱을 통해 장치를 읽고 제어할 수 있다.
-
-### 왜 앱 안에 있나
-
-COM 포트는 한 프로세스만 열 수 있다. 별도 MCP 서버 프로세스는 GUI 가 떠 있는 동안 포트에
-접근할 수 없으므로, **"앱을 쓰면서 동시에 AI 제어"가 되려면 서버가 포트를 쥔 GUI 프로세스
-안에 살아야 한다.** 공식 C# SDK
+Setup 의 **AI control server** 를 켜면 앱 안에서 MCP 서버가 떠서 Claude 같은 AI 가 장치를
+읽고 제어할 수 있다. COM 포트는 한 프로세스만 잡을 수 있으므로 **서버는 포트를 쥔 GUI
+프로세스 안에 산다.** 공식 SDK
 ([`ModelContextProtocol.AspNetCore`](https://www.nuget.org/packages/ModelContextProtocol.AspNetCore))
-의 Streamable HTTP 를 `http://localhost:5115` 에 바인딩한다 — localhost 전용, stateless 모드.
+의 Streamable HTTP, `http://localhost:5115`, localhost 전용, 기본 꺼짐.
 
-클라이언트 등록 (Claude Code 기준, 서버를 켠 상태에서):
+등록은 Setup 의 **Copy register cmd** 버튼으로 아래 명령을 복사해 붙여넣으면 된다:
 
 ```bash
 claude mcp add --transport http pdpower http://localhost:5115
 ```
 
-Setup 의 **Copy register cmd** 버튼이 이 명령을 그대로 클립보드에 복사한다 —
-Claude Code 터미널에 붙여넣기만 하면 된다.
+| 도구 | 동작 |
+|---|---|
+| `get_status` | 연결·출력·CV/CC/OC·실측 V/A/W·입력(PD)·활성 프리셋 |
+| `get_settings` | 프리셋 M0–M4, OCP, 밝기, PD 전압 — **장치에서 되읽어 노브 변경도 반영** |
+| `get_history_stats` | Trend 구간의 V/A/W min/avg/max |
+| `set_output` / `set_setpoint` | 출력 on/off, 전압/전류 (한쪽만 지정 가능) |
+| `select_preset` / `set_pd_voltage` | **출력 중 거부** (GUI 와 같은 규칙) |
+| `set_ocp` / `set_brightness` / `save_config` | Setup 항목과 동일 |
 
-### 도구 10종
+제어 요청은 UI 스레드로 마샬링해 **GUI 버튼과 같은 코드 경로**를 타고(화면·UNSAVED 동기),
+모든 AI 명령은 Log 에 `[MCP]` 로 남는다. 도구 10종 실기기 검증 완료 (2026-08-03).
 
-| 도구 | 종류 | 동작 |
-|---|---|---|
-| `get_status` | 읽기 | 연결 여부, 출력 on/off, CV/CC/OC, 실측 V/A/W, 입력(PD) 상태, 활성 프리셋과 설정값 |
-| `get_settings` | 읽기 | 프리셋 M0–M4, OCP, 밝기, PD 요청 전압 — **장치에서 되읽으므로 노브로 바꾼 값도 반영** |
-| `get_history_stats` | 읽기 | Trend 에 보이는 구간의 V/A/W 각 min/avg/max |
-| `set_output` | 제어 | 출력 on/off |
-| `set_setpoint` | 제어 | 활성 프리셋의 전압/전류 — 한쪽만 지정 가능 |
-| `select_preset` | 제어 | 프리셋 전환 — **출력 중에는 거부** (GUI 와 같은 규칙) |
-| `set_ocp` | 제어 | 과전류 보호 on/off |
-| `set_pd_voltage` | 제어 | PD 요청 전압 (9/12/15/20 V, 출력 중 거부) |
-| `set_brightness` | 제어 | LCD 밝기 1–100 % (슬라이더 디바운스를 우회해 즉시 기록) |
-| `save_config` | 제어 | `SYSTEM_CONFIG_SAVE`(0x44) |
-
-### 구조와 안전장치
-
-- 게이트웨이는 [`MainViewModel.Mcp.cs`](src/PdPower.App/ViewModels/MainViewModel.Mcp.cs).
-  제어 요청은 디스패처로 UI 스레드에 마샬링해 **GUI 버튼과 같은 코드 경로**를 탄다 —
-  화면·UNSAVED 상태가 함께 갱신되고, 장치 트랜잭션은 기존 세마포어로 폴링 루프와 직렬화된다.
-- AI 가 보낸 명령은 전부 Log 화면에 `[MCP]` 접두어로 남는다.
-- 범위 검증은 GUI 와 동일 (전압 1–20 V / 전류 0–3 A 클램프, PD 는 표준 단계만).
-- 서버는 기본 꺼짐, localhost 바인딩만 — 외부 네트워크에서 접근할 수 없다.
-- 실기기 검증 완료 (2026-08-03, COM9): 도구 10종 호출, 출력 on 시 12.004 V 실측,
-  출력 중 프리셋 전환·잘못된 PD 전압이 명확한 한국어 메시지로 거부되는 것까지 확인.
-
-### 구현 주의 (MCP SDK 2.0)
-
-- **nullable 파라미터에도 기본값(`= null`)을 붙여야 스키마에서 선택 인자가 된다.**
-  `double? volts` 만 쓰면 required 로 잡혀서, 인자를 생략한 호출이 도구 진입 전에
-  바인딩 오류로 죽는다 (실측: `set_setpoint {"volts":5}` 가 generic error 로 실패했다).
-- 도구가 던지는 예외는 `McpException` 이어야 클라이언트가 메시지를 그대로 본다 —
-  일반 예외는 SDK 가 내용을 가린다. 게이트웨이 예외를 도구 계층에서 변환한다.
-- `FrameworkReference Microsoft.AspNetCore.App` 이 App 까지 전이되므로,
-  framework-dependent 배포본은 **ASP.NET Core Runtime 도 필요**해졌다 (standalone 은 무관).
+SDK 2.0 주의: ① nullable 파라미터도 **기본값 `= null` 이 있어야** 스키마에서 선택 인자가 된다
+② 도구 예외는 `McpException` 이어야 클라이언트가 메시지를 본다 ③ `Microsoft.AspNetCore.App`
+프레임워크 참조가 전이되어 framework-dependent 배포본은 **ASP.NET Core Runtime 도 필요**.
 
 ## 5. 솔루션 구조
 
 ```
 WeactPD_PowerV1/
-├─ WeactPD_PowerV1.sln
 ├─ Directory.Build.props          ← 공유 버전 (VersionPrefix)
 ├─ .githooks/pre-commit           ← 커밋마다 패치 버전 증가
 ├─ .github/workflows/build.yml    ← 빌드·테스트, 태그 시 Release 배포
-├─ README.md                      ← 본 문서 (영문판 README.en.md)
-├─ docs/protocol/                 ← 제조사 프로토콜 원본 (UART/USB xlsx, Python 예제)
-├─ GUI/design/                    ← 목표 GUI 디자인안 (HTML 목업, C# 구현 스펙, 스크린샷)
-├─ GUI/icon/                      ← 앱 아이콘 원본 (ico + png) — exe·창 아이콘이 여기서 온다
+├─ docs/protocol/                 ← 제조사 프로토콜 원본
+├─ GUI/design/ · GUI/icon/        ← 디자인 목업 · 앱 아이콘 원본
 ├─ src/
-│  ├─ PdPower.Core/               ← 프로토콜 라이브러리 (net8.0)
-│  │  ├─ Protocol/
-│  │  │  ├─ PdCommand.cs          ←   명령 코드 enum
-│  │  │  ├─ ProtocolMode.cs       ←   UsbCdc / Uart
-│  │  │  ├─ Crc8.cs               ←   CRC-8 (0x31, init 0xFF)
-│  │  │  └─ Frame.cs              ←   프레임 인코딩/디코딩, 응답 길이표
-│  │  ├─ Models/                  ←   DeviceInfo, OutputStatus, InputStatus,
-│  │  │                           ←   MeasurementHistory (시간 기준 링 버퍼)
-│  │  ├─ PdPowerDevice.cs         ←   장치 API (SerialPort 요청/응답)
-│  │  └─ PdPowerException.cs
-│  ├─ PdPower.Cli/                ← 실장비 검증 콘솔 도구 (net8.0)
-│  ├─ PdPower.Mcp/                ← MCP 서버 (도구 정의 + Kestrel 호스트, net8.0)
-│  │  ├─ IPdPowerGateway.cs       ←   도구 ↔ 앱 사이 인터페이스 + 응답 DTO
-│  │  ├─ PdPowerMcpTools.cs       ←   AI 에 노출되는 도구 10종
-│  │  └─ McpServerHost.cs         ←   localhost:5115 Streamable HTTP 호스트
-│  └─ PdPower.App/                ← WPF GUI (net8.0-windows, MVVM)
-│     ├─ Themes/Theme.xaml        ←   팔레트 + 컨트롤 템플릿 전체 교체
-│     ├─ Controls/TrendChart.cs   ←   듀얼축 시계열 차트 (직접 렌더링)
-│     ├─ ViewModels/MainViewModel.cs      (+ MainViewModel.Mcp.cs — MCP 게이트웨이)
-│     ├─ Converters.cs
-│     └─ MainWindow.xaml
-└─ tests/PdPower.Core.Tests/      ← xUnit 42개 — CRC8/프레임/히스토리 검증
+│  ├─ PdPower.Core/               ← 프로토콜 라이브러리 (Frame, Crc8, PdPowerDevice,
+│  │                                 MeasurementHistory — 시간 기준 링 버퍼)
+│  ├─ PdPower.Cli/                ← 실장비 검증 콘솔 (selftest/bench/test-ocp 등)
+│  ├─ PdPower.Mcp/                ← MCP 도구 10종 + localhost:5115 Kestrel 호스트
+│  └─ PdPower.App/                ← WPF GUI (Theme.xaml 템플릿, TrendChart,
+│                                    MainViewModel + MainViewModel.Mcp.cs)
+└─ tests/PdPower.Core.Tests/      ← xUnit 42개
 ```
 
 ### 버전 · 릴리스
 
-버전은 [`Directory.Build.props`](Directory.Build.props) 의 `VersionPrefix` 하나로 관리하고
-모든 프로젝트가 공유한다. 앱은 좌측 레일 로고 아래, CLI 는 `help` 첫 줄에 표시한다.
-
-**클론 후 한 번** 실행해 커밋 훅을 켠다:
+버전은 `Directory.Build.props` 의 `VersionPrefix` 하나. 클론 후 한 번:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-그러면 [`.githooks/pre-commit`](.githooks/pre-commit) 이 커밋마다 패치 자리를 올려 커밋에
-포함시킨다. 건너뛰려면 `SKIP_VERSION_BUMP=1 git commit ...`. 머지·리베이스·체리픽 중에는
-충돌을 만들지 않도록 스스로 빠진다.
-
-> `pre-push` 가 아니라 `pre-commit` 인 이유: push 시점에는 git 이 전송할 커밋 SHA 를 이미
-> 확정해 놓아서, 훅이 새로 만든 커밋을 그 push 에 실을 수 없다. 억지로 끼우면
-> non-fast-forward 로 거부되거나 두 번 push 해야 한다. 커밋 때 올려두면 그다음 push 는
-> 자연히 올라간 버전을 가져간다.
-
-[`.github/workflows/build.yml`](.github/workflows/build.yml) 이 버전을 최종 결정한다:
-
-| 상황 | 버전 | 산출물 |
-|---|---|---|
-| `master` 푸시 / PR | `<VersionPrefix>-dev.<run_number>` | Actions 아티팩트 (푸시마다 번호 증가) |
-| 태그 `v1.2.3` 푸시 | `1.2.3` | **GitHub Release 자동 생성** |
-
-릴리스에 올라가는 파일 4개:
-
-| 파일 | 내용 |
-|---|---|
-| `PdPowerTool.exe` | GUI, 단일 exe (~1 MB, .NET 8 Desktop Runtime + **ASP.NET Core Runtime** 필요 — MCP 서버 때문) |
-| `PdPowerTool-standalone.exe` | GUI, 런타임 포함 (~70 MB, 아무 PC에서나 실행) |
-| `PdPowerCli.exe` | CLI, 단일 exe (.NET 8 Runtime 필요) |
-| `PdPowerCli-standalone.exe` | CLI, 런타임 포함 |
-
-릴리스 내는 방법 — 태그만 밀면 된다:
+이후 커밋마다 패치 버전이 자동으로 올라간다 (`SKIP_VERSION_BUMP=1` 로 생략,
+머지·리베이스 중엔 자동 제외). CI 가 최종 버전을 결정한다:
+`master` 푸시는 `<prefix>-dev.<run>` 아티팩트, **태그 `v1.2.3` 푸시는 GitHub Release 자동 생성**
+(퍼블리시 전에 테스트를 돌리므로 테스트가 깨지면 릴리스도 없다):
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-CI 는 퍼블리시 전에 테스트를 돌리므로, 테스트가 깨지면 릴리스가 만들어지지 않는다.
+| 릴리스 파일 | 내용 |
+|---|---|
+| `PdPowerTool.exe` | GUI 단일 exe — .NET 8 Desktop + ASP.NET Core Runtime 필요 |
+| `PdPowerTool-standalone.exe` | GUI, 런타임 포함 |
+| `PdPowerCli.exe` / `PdPowerCli-standalone.exe` | CLI (전자는 .NET 8 Runtime 필요) |
 
 ### 빌드 · 실행
 
 ```bash
 dotnet build WeactPD_PowerV1.sln
-```
-
-```bash
-dotnet test tests/PdPower.Core.Tests/PdPower.Core.Tests.csproj
-```
-
-CLI로 실장비 확인 (읽기 전용):
-
-```bash
-dotnet run --project src/PdPower.Cli -- --port COM9 selftest
-```
-
-WPF 앱 실행:
-
-```bash
+dotnet test
+dotnet run --project src/PdPower.Cli -- --port COM9 selftest   # 실장비 확인 (읽기 전용)
 dotnet run --project src/PdPower.App
 ```
 
 ### 구현 시 주의점
 
-- `Frame.ResponseLength()` 로 응답 길이를 고정해 프레임을 잘라낸다. **종단 바이트(0x0A) 탐색만으로는
-  프레임을 나눌 수 없다** — 예를 들어 2570 mV(`0x0A0A`)처럼 페이로드에 0x0A가 들어갈 수 있다.
-  ASCII 응답(WHO_AM_I/VERSION/SERIAL)만 종단 탐색을 쓴다.
-- 요청 직전에 수신 버퍼를 비워(`DiscardInBuffer`) 프레임 동기를 잡는다.
-- `PdPowerDevice.FrameExchanged` 이벤트는 **스레드 풀에서 발생**한다. UI 컬렉션을 갱신하려면
-  구독자가 디스패처로 마샬링해야 한다 (안 하면 `NotSupportedException`).
-- 슬라이더처럼 값이 연속으로 바뀌는 컨트롤은 **디바운스가 필수**다. 밝기를 그대로 바인딩하면
-  드래그 한 번에 수백 개 프레임이 나간다. `MainViewModel` 은 250 ms 모아서 한 번만 쓴다.
-  장치에서 되읽어 슬라이더를 맞출 때는 억제 플래그로 쓰기 루프를 끊는다.
-- `READ_INPUT_STATE`(0x8A)는 PD Power Mini V1 펌웨어 **v1.0.2.0 이상**에서만 지원 —
-  실패를 정상 흐름으로 처리한다.
+- 응답은 `Frame.ResponseLength()` 고정 길이로 자른다. **0x0A 탐색만으로는 프레임을 못 나눈다**
+  — 페이로드에 0x0A 가 들어갈 수 있다 (예: 2570 mV = `0x0A0A`). ASCII 응답만 종단 탐색.
+- 요청 직전 `DiscardInBuffer` 로 프레임 동기를 잡는다.
+- `FrameExchanged` 이벤트는 스레드 풀에서 온다 — UI 컬렉션은 디스패처로 마샬링.
+- 슬라이더류는 디바운스 필수 (밝기는 250 ms 모아 한 번만 쓰고, 되읽을 땐 억제 플래그).
+- `READ_INPUT_STATE` 는 펌웨어 v1.0.2.0+ — 실패를 정상 흐름으로 처리.
 
-## 6. 개발 로드맵
+## 6. 로드맵
 
-- [x] **PdPower.Core**: 프로토콜 라이브러리
-  - [x] 프레임 빌더/파서 (USB CDC `0x0A` 종단 + UART CRC8 모드)
-  - [x] 명령 API (enable, preset, data set/get, display, input state, 보호 설정, save 등)
-  - [x] 요청/응답 직렬화 + 타임아웃, 연결 해제 감지
-  - [x] 단위 테스트 — 문서의 CRC8 정답값 15개로 검증
-  - [ ] SYSTEM_FACTORY_DATA(0x47) 캘리브레이션 값 읽기/쓰기
-- [x] **PdPower.Cli**: 실장비 검증 도구 (읽기 명령 전체 확인 완료)
-- [x] **PdPower.App (WPF, MVVM)**
-  - [x] 목업 기준 레이아웃 — 여백 0, 톤 있는 레일, 2단 측정 셀, 통합 스테퍼 알약
-  - [x] 기본 컨트롤 템플릿 전체 교체 (ComboBox·CheckBox·ListBox·버튼)
-  - [x] 레일 내 Monitor/Log 내비, 프리셋 M0–M4 (1클릭 적용, 출력 중 잠금)
-  - [x] PD INPUT 스테퍼, PORT 카드 (드롭다운 열 때 포트 자동 갱신)
-  - [x] 250 ms 폴링 → 실측 V/A/W, CV/CC/OC 배지, RUN/IDLE/OFFLINE 칩
-  - [x] `ON│OFF` 세그먼트 출력 제어
-  - [x] 스테퍼 (−/+ 버튼, 휠 ±1 / Ctrl+휠 ±0.1)
-  - [x] 듀얼축 Trend 차트 + 오토스케일, 시간 범위 1m/5m/1h
-  - [x] Trend 계측 기능 — 클릭 정지, 커서 읽기, CSV 내보내기, 상태 띠, 창 통계
-  - [x] Y축 Auto / Fit / 휠 수동 줌 (전압·전류 축 각각)
-  - [x] 백그라운드 폴링 루프 + 60 ms 화면 갱신 (10 ms 주기에서도 UI 유지)
-  - [x] 측정 주기(10 ms 단위) · 상태 읽기 배수 설정
-  - [x] Log 화면 (원시 프레임 트레이스 토글)
-  - [x] Setup 화면 — OCP on/off, LCD 밝기 슬라이더, 설정 저장(`0x44`) + 미저장 표시
-  - [x] USB 단절 시 자동 재접속 대기 (아래 참조)
-  - [x] 내장 MCP 서버 — AI 로 장치 읽기/제어, Setup 토글, `[MCP]` 로그 (§4)
-  - [x] MCP 등록 명령 복사 버튼 (Setup → Copy register cmd)
-  - [x] Setup About — 전체 버전(커밋 해시 포함) + GitHub Releases 링크, 레일 버전 툴팁
-  - [x] 앱·CLI exe 아이콘 + 창 타이틀바 아이콘 (`GUI/icon/pd-power.ico`)
-  - [ ] Setup 나머지: 오프셋 보정, 방전(읽기 명령 없음에 유의)
-  - [ ] Setup 유지보수: 재부팅(`0x40`), 공장 초기화(`0x45`) — `0xC7` 교정값 백업 기능을 먼저 붙일 것
-  - [ ] 미연결 시 CV 배지가 뜨는 문제 (기본값이 `CV` 라 장치 없이도 표시됨)
-  - [ ] 레일 56 px 아이콘 모드 접힘
-  - [ ] 프리셋 더블클릭 인라인 편집
-  - [ ] 앱 설정 저장 (측정 주기 등이 재시작하면 기본값으로 돌아간다)
-  - [ ] 트리거 버스트 캡처 — 조건(상태 ≠ CV) 발생 시 전후 구간만 최고 속도로 담고 자동 정지.
-        상시 10 ms 가 CPU 29 %를 먹는 문제를 피하면서 트립 파형을 제대로 잡는 방법
-  - [ ] 전력(W) 시리즈 — 3번째 축을 어디에 둘지 결정 필요
-- [ ] 설치본 패키징
+완료: 프로토콜 라이브러리(+테스트 42), CLI, 목업 충실 GUI(백그라운드 폴링·Trend 계측·Setup·
+자동 재접속), MCP 서버, 아이콘, 버전/릴리스 자동화.
+
+남은 것:
+
+- [ ] Setup: 오프셋 보정, 방전(읽기 명령 없음), 재부팅/공장초기화(`0xC7` 교정값 백업 먼저)
+- [ ] SYSTEM_FACTORY_DATA(0x47) 캘리브레이션 읽기/쓰기
+- [ ] 미연결 시 CV 배지 표시 문제, 레일 접힘 모드, 프리셋 인라인 편집, 앱 설정 저장
+- [ ] 트리거 버스트 캡처 (상시 10 ms 폴링의 CPU 29 % 를 피하면서 트립 파형 잡기)
+- [ ] 전력(W) 시리즈, 설치본 패키징
 
 ## 7. 참고 링크
 
@@ -413,127 +224,57 @@ dotnet run --project src/PdPower.App
 
 ## 8. 주의 사항
 
-- `INPUT_PD_VOLTAGE` 변경은 **출력 OFF + 출력전압 5 V 미만**일 때만 적용됨
-- 3 A 연속 출력은 방열 보강 필요 (2 A까지는 상시 가능)
-- **`*_EN` 계열은 `1=enable` 이다 (실측 확정).** xlsx 표는 `OUTPUT_EN`·`OCP_EN`·`OFFSET_EN`·
-  `DISCHARGE_EN` 네 명령에 똑같이 "x=0,enable;x=1,disable" 주석을 달아놨는데 **틀렸다.**
-  근거: ① 벤더 README가 OCP를 `0=Disabled, 1=Enabled`로 기술 ② 벤더 Python 예제가 `1=enable`
-  ③ COM9 실측 — `0x01`을 보내면 출력이 실제로 켜지고 OCP 보호가 발동했다.
-  `PdPowerDevice.OutputEnableOnValue` 기본값 `0x01`이 맞다.
-- 프리셋·PD 전압 등 쓰기 값은 휘발성 — `SYSTEM_CONFIG_SAVE` 없이는 전원 재인가 시 소실
-- UART 직결 시 3.3 V 레벨, 외부 UART 칩은 역전류 보호 필요
+- `INPUT_PD_VOLTAGE` 변경은 **출력 OFF + Vout 5 V 미만**일 때만 적용.
+- 3 A 연속 출력은 방열 보강 필요 (2 A까지는 상시 가능).
+- **`*_EN` 계열은 `1=enable`** — xlsx 의 `0=enable` 주석 4개는 전부 오류다
+  (벤더 README·Python 예제·COM9 실측 모두 `1=enable`).
+- 쓰기 값은 휘발성 — `SYSTEM_CONFIG_SAVE` 없이는 재인가 시 소실.
+- UART 직결은 3.3 V 레벨, 외부 UART 칩은 역전류 보호 필요.
 
 ## 9. 폴링 성능 실측 (COM9, `PdPower.Cli bench 300`)
-
-GUI 폴링이 매 주기에 쓰는 읽기 명령 3개의 왕복 시간. 단위 ms.
 
 | 명령 | 최소 | 평균 | p95 | 최대 |
 |---|---|---|---|---|
 | `READ_OUTPUT_DISPLAY` `0x85` | 0.14 | 0.23 | 0.30 | 0.67 |
 | `READ_OUTPUT_STATE` `0x82` | 0.15 | 0.31 | 0.30 | 26.09 |
 | `READ_INPUT_STATE` `0x8A` | 0.16 | 0.29 | 0.31 | 17.67 |
-| **폴링 1주기 합계** | **0.48** | **0.83** | **0.85** | **26.58** |
+| **폴링 1주기 합계 (ms)** | **0.48** | **0.83** | **0.85** | **26.58** |
 
-**250 ms 주기 점유율 0.3 %** — 300배 여유가 있다. USB CDC 데이터 엔드포인트는 벌크라서
-1 ms 프레임 스케줄에 묶이지 않고, 그래서 왕복이 서브밀리초로 나온다.
+250 ms 주기 점유율 0.3 % — 전송은 병목이 아니다 (CDC 데이터 엔드포인트는 벌크라 서브밀리초).
+실제 제약은 ① 장치 표시값 갱신이 ~10 ms 라 그 아래로는 새 데이터가 없고
+② 드물게 20–30 ms 지연이 튀며 ③ 프레임 트레이스를 켜면 주기가 15배 늘어난다는 것.
 
-주기를 줄일 때 실제로 걸리는 제약은 전송이 아니다:
+구조: 수집은 `PeriodicTimer` 백그라운드 루프(UI 무접촉), 화면 반영과 차트 렌더는 60 ms 로
+묶는다. 측정(`0x85`)은 매 틱, 상태·입력은 설정한 배수마다 — OCP 트립(약 200 ms)의 CC→OC
+전이를 보려면 상태 실효 주기를 200 ms 아래로. 실측 CPU(한 코어): 250 ms 폴링 2.2 %,
+10 ms 폴링 29.1 % (UI 는 양쪽 다 정상 — 비용 대부분은 `TransactAsync` 의 `Task.Run`).
 
-- **장치 표시값 갱신 주기.** 0.5 ms 간격으로 읽으면 같은 값이 중복돼 나온다.
-  10 ms 아래로는 새 데이터가 없다.
-- **드물게 20~30 ms 지연이 튄다** (p95는 0.85 ms인데 최대 26.6 ms). 주기를 30 ms 미만으로
-  잡으면 간헐적으로 주기가 겹칠 수 있다. `PollAsync` 의 재진입 가드가 그 틱을 건너뛰므로
-  안전하지만, 실효 주기는 흔들린다.
-- **프레임 트레이스를 켜면 주기가 15배 늘어난다** (0.8 ms → 11~15 ms). 디스패처 마샬링과
-  `ObservableCollection` 갱신 비용이다. 기본이 꺼져 있는 이유이고, 트레이스를 켠 상태로 잰
-  시간은 전송 성능의 근거가 될 수 없다.
-
-즉 250 ms는 매우 보수적인 값이다. Setup 에서 10 ms 단위로 조절할 수 있다.
-
-### 폴링 구조 — 백그라운드 루프 + 묶은 화면 갱신
-
-`DispatcherTimer` 로 10 ms 를 돌리면 실효 주기가 나오지 않는다. 기본 우선순위가 `Background` 라
-렌더링에 밀리고, 샘플마다 UI 컬렉션을 건드리면 초당 100회 재렌더가 걸린다. 그래서 구조를 나눴다:
-
-- **수집**은 `PeriodicTimer` 백그라운드 루프. UI 를 전혀 건드리지 않고 최신 값 스냅샷과
-  `MeasurementHistory` 에만 쓴다. 주기 변경은 `PeriodicTimer.Period` 로 즉시 반영된다.
-- **화면 반영**은 60 ms 간격으로 묶어서 한 번. 측정 주기와 무관하다.
-- **차트 재렌더**도 `TrendChart` 자체 타이머로 60 ms 로 제한한다. 히스토리 갱신 이벤트는
-  백그라운드 스레드에서 올라오므로 플래그만 세우고 렌더는 UI 타이머가 한다.
-- 측정(`0x85`)은 매 틱, 상태·입력(`0x82`/`0x8A`)은 설정한 배수마다 읽는다.
-  OCP 트립의 CC→OC 전이를 보려면 상태 실효 주기를 200 ms 아래로 두어야 한다.
-
-실측 CPU (COM9, 12 V 출력 중, 한 코어 기준):
-
-| 측정 주기 | CPU | UI 응답 |
-|---|---|---|
-| 250 ms | 2.2 % | 정상 |
-| 10 ms | 29.1 % | **정상** |
-
-10 ms 도 UI 가 멈추지 않는다. 다만 29 %는 싸지 않은데, 대부분 `PdPowerDevice.TransactAsync` 가
-트랜잭션마다 `Task.Run` 으로 스레드 풀을 거치는 비용이다 (초당 300회 → 300번의 스레드 풀 디스패치).
-상시로 10 ms 를 쓸 일이 생기면 그 부분을 먼저 손대면 된다.
-
-### Trend 히스토리 — 저장 간격은 창에서 유도된다
-
-10 ms 폴링으로 1시간 창을 채우면 36만 점이 필요한데 메모리도 렌더링도 감당할 수 없다.
-그래서 [`MeasurementHistory`](src/PdPower.Core/Models/MeasurementHistory.cs) 는 링 버퍼 상한
-14,400점을 두고, **저장 간격 = 창 길이 / 14,400** 으로 계산해 그보다 촘촘한 샘플을 버린다.
-
-| 범위 | 저장 간격 | 250 ms 폴링 시 점 개수 |
-|---|---|---|
-| 1m | 4 ms | 240 |
-| 5m | 21 ms | 1,200 |
-| 1h | 250 ms | 14,400 |
-
-즉 짧은 창에서는 폴링 주기 그대로 다 담기고, 긴 창에서는 알아서 드물게 저장된다.
-x축은 항상 선택한 창 전체를 덮으므로, 기록이 짧으면 오른쪽 일부만 채워진 상태로 보인다
-(1h 를 막 선택하면 거의 빈 그래프인 게 정상이다).
+Trend 히스토리는 링 버퍼 14,400점, **저장 간격 = 창 길이 / 14,400** (1m→4 ms, 5m→21 ms,
+1h→250 ms). 짧은 창은 폴링 그대로 다 담기고 긴 창은 알아서 드물게 저장된다.
+1h 를 막 선택하면 오른쪽만 채워진 거의 빈 그래프인 게 정상.
 
 ## 10. 재접속 대기 (USB 단절 복구)
 
-폴링 중 통신이 실패하면 연결을 버리지 않고 **같은 포트로 돌아오기를 기다린다.**
-장치 재부팅이나 케이블 접촉 불량으로 CDC 포트가 잠깐 사라지는 상황을 흡수한다.
+폴링 중 통신이 실패하면 같은 포트로 돌아오기를 **1초 × 60회** 기다린다. 포트가 열거에
+다시 나타난 뒤 `WHO_AM_I` 성공까지 재시도하고, **시리얼 번호가 다르면**(같은 포트에 다른
+장치) 자동 재접속을 중단한다. 성공하면 프리셋·OCP·밝기를 다시 읽는다 — 재부팅이었다면
+휘발성 값이 플래시 값으로 돌아가 있기 때문. 대기 중 상태 칩은 `RECONNECT`, Trend 히스토리는
+유지되며 `Disconnect` 로 취소한다.
 
-- 1초 간격으로 최대 60회(약 60초) 재시도. 초과하면 포기하고 완전 오프라인으로 떨어진다.
-- 포트 이름이 열거 목록에 다시 나타날 때까지는 열어보지도 않는다. 나타난 뒤에도 장치가
-  응답할 준비가 안 됐을 수 있어 `WHO_AM_I` 가 성공할 때까지 계속 재시도한다.
-- **시리얼 번호로 동일 장치인지 확인한다.** 같은 포트 이름에 다른 장치가 꽂힐 수 있으므로,
-  SN이 다르면 자동 재접속을 중단하고 사용자에게 넘긴다 — 엉뚱한 전원 장치에 프리셋을
-  쓰는 것보다 안전하다.
-- 재접속에 성공하면 프리셋·OCP·밝기를 **다시 읽어온다.** 재부팅이었다면 휘발성 값이
-  플래시 값으로 돌아가 있으므로 화면을 갱신해야 한다.
-- 대기 중에는 상태 칩이 `RECONNECT`(주황)로 바뀌고, Trend 히스토리와 장치 식별 정보는
-  유지된다. `Disconnect` 를 누르면 대기를 취소한다.
+**미검증**: 실제 단절→복구는 아직 확인 전. 출력 끄고 USB 재삽입하거나 `SYSTEM_RESET`(0x40)
+전송으로 확인할 수 있다.
 
-**미검증:** 코드 경로는 완성됐고 일반 연결에 회귀가 없음을 실장비로 확인했지만,
-실제 단절→복구는 확인하지 못했다. 확인 방법은 두 가지다.
-
-1. 출력을 끈 뒤 USB 케이블을 뽑았다 꽂는다. (전원과 데이터가 같은 Type-C 커넥터를
-   공유하는 구성이면 뽑는 순간 장치 전원도 끊기므로 출력을 먼저 끌 것)
-2. `SYSTEM_RESET`(`0x40`)을 보낸다 — 재부팅하면서 CDC 포트가 사라진다.
-   단, 저장하지 않은 휘발성 설정은 플래시 값으로 되돌아간다.
-
-## 11. OCP 실측 결과 (12 V, 약 21 Ω 부하, COM9)
-
-`PdPower.Cli test-ocp 12.0 0.2` 로 전류 제한을 부하 전류보다 낮게 두고 측정했다.
+## 11. OCP 실측 (12 V, 약 21 Ω 부하, `test-ocp 12.0 0.2`)
 
 | | OCP OFF | OCP ON |
 |---|---|---|
 | 결과 | CC 물림, **출력 유지** | **220 ms 에 차단** |
 | 정상상태 | 4.15 V / 0.200 A (제한값에 정확히 물림) | 도달 못 함 |
-| 최종 상태 비트 | `ON` / `ConstantCurrent` | `OFF` / `OverCurrent` |
+| 최종 상태 | `ON` / `ConstantCurrent` | `OFF` / `OverCurrent` |
 
-실측으로 확인한, 문서에 없는 사실 세 가지:
+문서에 없는 실측 사실: ① **OC 는 래치** — 출력을 다시 켜야 지워진다.
+② 트립 타이머는 표시 전류가 아니라 **CC 진입 시점** 기준 — 과부하면 표시 전류가 설정값에
+도달하기 전에 트립한다. ③ 출력 전압 램프가 느리다 (CC 물림 → 정상상태 약 640 ms).
 
-1. **OC 는 래치다.** 트립 후 출력을 끄거나 OCP 를 꺼도 상태 비트에 `OverCurrent`(raw `0x04`)가
-   계속 남는다. **출력을 다시 켜면 지워진다.**
-2. **트립 타이머는 "표시 전류가 설정값을 넘는 시점"이 아니라 "장치가 CC 에 진입한 시점" 기준으로
-   보인다.** 과부하일 때 소프트스타트 램프 중 곧바로 CC 로 들어가고 약 200 ms 뒤 차단되므로,
-   **표시 전류가 설정값에 도달하는 걸 보기 전에 트립한다** (측정 중 표시 전류는 0.03 A 수준이었다).
-3. **출력 전압 램프가 느리다** — CC 물림 상태에서 정상상태까지 약 640 ms 걸린다.
-   짧은 관찰 창으로는 "전압이 낮다"고 오판할 수 있다.
-
-실무적 함의: 과부하 + OCP ON 이면 목표 전압에 도달하지 못하고 저전압 펄스만 나온 뒤 꺼진다.
-그리고 GUI 의 250 ms 폴링은 CC 구간(약 200 ms)을 **놓칠 수 있고**, 대개 래치된 `OFF`/`OC` 결과만
-보게 된다. 트립 원인을 보여주려면 폴링을 빠르게 하거나 트립 이벤트를 따로 기록해야 한다.
+함의: 과부하 + OCP ON 은 저전압 펄스 후 꺼지며, 250 ms 폴링은 CC 구간을 놓치고 래치된
+`OFF`/`OC` 만 보게 될 수 있다 — 트립 원인을 보려면 폴링을 빠르게 할 것.
