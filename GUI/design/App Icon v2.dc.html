@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#EDECE8; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#1A1917; text-decoration:underline; }
+  a:hover { color:oklch(0.5 0.13 255); }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:40px; padding:56px 64px 40px;">
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:820px;">
+    <div style="font:500 12px/1 'JetBrains Mono',monospace; letter-spacing:0.18em; text-transform:uppercase; color:#8A867C;">Turn 4 — "PD" lettermarks</div>
+    <div style="font-size:32px; font-weight:700; letter-spacing:-0.02em; color:#1A1917;">PD 글자가 들어간 시안 6종</div>
+    <div style="font-size:15px; line-height:1.6; color:#57544D; text-wrap:pretty;">앞선 형태 실험들을 "PD" 글자와 결합했습니다. 16 px에서 두 글자가 붙어 보이는 것을 막기 위해 자간과 획 두께를 크기별로 조정한 버전을 함께 확인하세요.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start;">
+
+    <div id="4a" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">4a</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">PD stacked</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect>
+          <text x="128" y="122" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="86" font-weight="800" fill="#FFFFFF" letter-spacing="-2">PD</text>
+          <text x="128" y="196" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="46" font-weight="500" fill="#3B7DF0" letter-spacing="4">PWR</text>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><text x="128" y="122" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="86" font-weight="800" fill="#FFFFFF" letter-spacing="-2">PD</text><text x="128" y="196" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="46" font-weight="500" fill="#3B7DF0" letter-spacing="4">PWR</text></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="110" font-weight="800" fill="#FFFFFF" letter-spacing="-4">PD</text><rect x="76" y="176" width="104" height="12" rx="6" fill="#3B7DF0"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="110" font-weight="800" fill="#FFFFFF" letter-spacing="-4">PD</text><rect x="76" y="176" width="104" height="12" rx="6" fill="#3B7DF0"></rect></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">큰 크기엔 PD + PWR, 32 px 이하는 PD만 남기는 반응형 세트.</div>
+    </div>
+
+    <div id="4b" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">4b</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">PD + bolt</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect>
+          <text x="112" y="164" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="104" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text>
+          <path d="M204 48 L172 106 H194 L184 158 L216 96 H194 Z" fill="#E8703A"></path>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><text x="112" y="164" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="104" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text><path d="M204 48 L172 106 H194 L184 158 L216 96 H194 Z" fill="#E8703A"></path></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><text x="112" y="164" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="104" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text><path d="M204 48 L172 106 H194 L184 158 L216 96 H194 Z" fill="#E8703A"></path></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><text x="128" y="164" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="112" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">글자 + 전원 기호 조합. 16 px에서는 볼트를 빼고 글자만.</div>
+    </div>
+
+    <div id="4c" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">4c</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">PD on display</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect>
+          <rect x="36" y="72" width="184" height="112" rx="22" fill="#0E1013"></rect>
+          <text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="72" font-weight="700" fill="#3B7DF0" letter-spacing="-2">PD</text>
+          <rect x="96" y="196" width="64" height="14" rx="7" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="36" y="72" width="184" height="112" rx="22" fill="#0E1013"></rect><text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="72" font-weight="700" fill="#3B7DF0" letter-spacing="-2">PD</text><rect x="96" y="196" width="64" height="14" rx="7" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="30" y="66" width="196" height="124" rx="24" fill="#0E1013"></rect><text x="128" y="158" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="86" font-weight="700" fill="#3B7DF0" letter-spacing="-3">PD</text></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="30" y="66" width="196" height="124" rx="24" fill="#0E1013"></rect><text x="128" y="158" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="86" font-weight="700" fill="#3B7DF0" letter-spacing="-3">PD</text></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">기기 디스플레이에 PD가 떠 있는 모습. 계측기 성격이 가장 뚜렷.</div>
+    </div>
+
+    <div id="4d" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">4d</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">PD in ring</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect>
+          <circle cx="128" cy="128" r="84" fill="none" stroke="#EDEDEA" stroke-width="16"></circle>
+          <circle cx="128" cy="128" r="84" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round" stroke-dasharray="370 160" transform="rotate(125 128 128)"></circle>
+          <text x="128" y="158" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="76" font-weight="800" fill="#16181C" letter-spacing="-4">PD</text>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="84" fill="none" stroke="#EDEDEA" stroke-width="16"></circle><circle cx="128" cy="128" r="84" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round" stroke-dasharray="370 160" transform="rotate(125 128 128)"></circle><text x="128" y="158" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="76" font-weight="800" fill="#16181C" letter-spacing="-4">PD</text></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="88" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-dasharray="400 160" transform="rotate(125 128 128)"></circle><text x="128" y="162" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="88" font-weight="800" fill="#16181C" letter-spacing="-5">PD</text></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><text x="128" y="166" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="104" font-weight="800" fill="#16181C" letter-spacing="-6">PD</text></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">라이트 톤. 링은 출력 게이지, 안쪽은 글자.</div>
+    </div>
+
+    <div id="4e" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">4e</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">PD split field</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <defs><clipPath id="sq4e"><rect x="8" y="8" width="240" height="240" rx="54"></rect></clipPath></defs>
+          <g clip-path="url(#sq4e)">
+            <rect x="0" y="0" width="256" height="256" fill="#3B7DF0"></rect>
+            <rect x="0" y="176" width="256" height="80" fill="#E8703A"></rect>
+            <text x="128" y="146" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="100" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text>
+          </g>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><defs><clipPath id="s4e1"><rect x="8" y="8" width="240" height="240" rx="54"></rect></clipPath></defs><g clip-path="url(#s4e1)"><rect x="0" y="0" width="256" height="256" fill="#3B7DF0"></rect><rect x="0" y="176" width="256" height="80" fill="#E8703A"></rect><text x="128" y="146" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="100" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text></g></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><defs><clipPath id="s4e2"><rect x="8" y="8" width="240" height="240" rx="54"></rect></clipPath></defs><g clip-path="url(#s4e2)"><rect x="0" y="0" width="256" height="256" fill="#3B7DF0"></rect><rect x="0" y="184" width="256" height="72" fill="#E8703A"></rect><text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="106" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text></g></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><defs><clipPath id="s4e3"><rect x="8" y="8" width="240" height="240" rx="54"></rect></clipPath></defs><g clip-path="url(#s4e3)"><rect x="0" y="0" width="256" height="256" fill="#3B7DF0"></rect><rect x="0" y="184" width="256" height="72" fill="#E8703A"></rect><text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="106" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text></g></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">면 분할 + 글자. 색 대비가 커서 작업표시줄에서 눈에 잘 띔.</div>
+    </div>
+
+    <div id="4f" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">4f</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">PD over trace</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect>
+          <polyline points="34,196 92,196 92,148 166,148 166,112 222,112" fill="none" stroke="#243040" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <polyline points="34,196 92,196 92,148 140,148" fill="none" stroke="#3B7DF0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <text x="128" y="112" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="82" font-weight="800" fill="#FFFFFF" letter-spacing="-4">PD</text>
+          <circle cx="222" cy="112" r="12" fill="#E8703A"></circle>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><polyline points="34,196 92,196 92,148 166,148 166,112 222,112" fill="none" stroke="#243040" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></polyline><polyline points="34,196 92,196 92,148 140,148" fill="none" stroke="#3B7DF0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></polyline><text x="128" y="112" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="82" font-weight="800" fill="#FFFFFF" letter-spacing="-4">PD</text><circle cx="222" cy="112" r="12" fill="#E8703A"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><polyline points="34,204 100,204 100,160 222,160" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"></polyline><text x="128" y="122" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="92" font-weight="800" fill="#FFFFFF" letter-spacing="-5">PD</text></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><polyline points="34,204 100,204 100,160 222,160" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"></polyline><text x="128" y="122" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="92" font-weight="800" fill="#FFFFFF" letter-spacing="-5">PD</text></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">본체 트렌드 그래프 + 글자. 앱 화면과 가장 직접적으로 연결됨.</div>
+    </div>
+
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center; padding:16px 20px; background:#16181C; border-radius:12px;">
+    <div style="font:500 11px/1 'JetBrains Mono',monospace; letter-spacing:0.16em; color:#7A7A72;">TASKBAR 48px</div>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C" stroke="#2B2E34" stroke-width="4"></rect><text x="128" y="122" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="86" font-weight="800" fill="#FFFFFF" letter-spacing="-2">PD</text><text x="128" y="196" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="46" font-weight="500" fill="#3B7DF0" letter-spacing="4">PWR</text></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><text x="112" y="164" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="104" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text><path d="M204 48 L172 106 H194 L184 158 L216 96 H194 Z" fill="#E8703A"></path></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="36" y="72" width="184" height="112" rx="22" fill="#0E1013"></rect><text x="128" y="150" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="72" font-weight="700" fill="#3B7DF0" letter-spacing="-2">PD</text><rect x="96" y="196" width="64" height="14" rx="7" fill="#E8703A"></rect></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF"></rect><circle cx="128" cy="128" r="84" fill="none" stroke="#EDEDEA" stroke-width="16"></circle><circle cx="128" cy="128" r="84" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round" stroke-dasharray="370 160" transform="rotate(125 128 128)"></circle><text x="128" y="158" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="76" font-weight="800" fill="#16181C" letter-spacing="-4">PD</text></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><defs><clipPath id="s4e4"><rect x="8" y="8" width="240" height="240" rx="54"></rect></clipPath></defs><g clip-path="url(#s4e4)"><rect x="0" y="0" width="256" height="256" fill="#3B7DF0"></rect><rect x="0" y="176" width="256" height="80" fill="#E8703A"></rect><text x="128" y="146" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="100" font-weight="800" fill="#FFFFFF" letter-spacing="-6">PD</text></g></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013" stroke="#2B2E34" stroke-width="4"></rect><polyline points="34,196 92,196 92,148 166,148 166,112 222,112" fill="none" stroke="#243040" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></polyline><polyline points="34,196 92,196 92,148 140,148" fill="none" stroke="#3B7DF0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></polyline><text x="128" y="112" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="82" font-weight="800" fill="#FFFFFF" letter-spacing="-4">PD</text><circle cx="222" cy="112" r="12" fill="#E8703A"></circle></svg>
+    <div style="margin-left:auto; font:400 11px/1.6 'JetBrains Mono',monospace; color:#7A7A72;">WeAct PD Power Mini V1.1 Buck</div>
+  </div>
+</section>
+
+<section style="display:flex; flex-direction:column; gap:40px; padding:56px 64px 40px;">
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:820px;">
+    <div style="font:500 12px/1 'JetBrains Mono',monospace; letter-spacing:0.18em; text-transform:uppercase; color:#8A867C;">Turn 3 — 10 concepts</div>
+    <div style="font-size:32px; font-weight:700; letter-spacing:-0.02em; color:#1A1917;">아이콘 시안 10종</div>
+    <div style="font-size:15px; line-height:1.6; color:#57544D; text-wrap:pretty;">기하 · 계측 · 커넥터 · 소자 네 갈래로 폭을 넓혔습니다. 각 시안 하단은 48 / 32 / 16 px 축소본.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start;">
+
+    <div id="3a" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3a</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Split square</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect>
+          <path d="M8 176 H248 V194 A54 54 0 0 1 194 248 H62 A54 54 0 0 1 8 194 Z" fill="#E8703A"></path>
+          <rect x="60" y="60" width="88" height="18" rx="9" fill="#FFFFFF"></rect>
+          <rect x="60" y="100" width="136" height="18" rx="9" fill="#FFFFFF"></rect>
+          <rect x="60" y="200" width="64" height="14" rx="7" fill="#FFFFFF"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M8 176 H248 V194 A54 54 0 0 1 194 248 H62 A54 54 0 0 1 8 194 Z" fill="#E8703A"></path><rect x="60" y="60" width="88" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="100" width="136" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="200" width="64" height="14" rx="7" fill="#FFFFFF"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M8 176 H248 V194 A54 54 0 0 1 194 248 H62 A54 54 0 0 1 8 194 Z" fill="#E8703A"></path><rect x="60" y="60" width="88" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="100" width="136" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="200" width="64" height="14" rx="7" fill="#FFFFFF"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M8 176 H248 V194 A54 54 0 0 1 194 248 H62 A54 54 0 0 1 8 194 Z" fill="#E8703A"></path><rect x="60" y="60" width="88" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="100" width="136" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="200" width="64" height="14" rx="7" fill="#FFFFFF"></rect></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">전압/전류 두 밴드를 면 분할로. 16 px에서 색 블록으로 식별.</div>
+    </div>
+
+    <div id="3b" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3b</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Analog needle</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect>
+          <path d="M52 176 A76 76 0 0 1 204 176" fill="none" stroke="#EDEDEA" stroke-width="16" stroke-linecap="round"></path>
+          <path d="M52 176 A76 76 0 0 1 128 100" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round"></path>
+          <line x1="128" y1="176" x2="186" y2="126" stroke="#16181C" stroke-width="12" stroke-linecap="round"></line>
+          <circle cx="128" cy="176" r="15" fill="#E8703A"></circle>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><path d="M52 176 A76 76 0 0 1 204 176" fill="none" stroke="#EDEDEA" stroke-width="16" stroke-linecap="round"></path><path d="M52 176 A76 76 0 0 1 128 100" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round"></path><line x1="128" y1="176" x2="186" y2="126" stroke="#16181C" stroke-width="12" stroke-linecap="round"></line><circle cx="128" cy="176" r="15" fill="#E8703A"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><path d="M52 176 A76 76 0 0 1 204 176" fill="none" stroke="#EDEDEA" stroke-width="16" stroke-linecap="round"></path><path d="M52 176 A76 76 0 0 1 128 100" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round"></path><line x1="128" y1="176" x2="186" y2="126" stroke="#16181C" stroke-width="12" stroke-linecap="round"></line><circle cx="128" cy="176" r="15" fill="#E8703A"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><path d="M52 176 A76 76 0 0 1 204 176" fill="none" stroke="#EDEDEA" stroke-width="16" stroke-linecap="round"></path><path d="M52 176 A76 76 0 0 1 128 100" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round"></path><line x1="128" y1="176" x2="186" y2="126" stroke="#16181C" stroke-width="12" stroke-linecap="round"></line><circle cx="128" cy="176" r="15" fill="#E8703A"></circle></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">아날로그 계측기 헤리티지. 바늘 각도가 곧 출력량.</div>
+    </div>
+
+    <div id="3c" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3c</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Battery cell</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect>
+          <rect x="52" y="76" width="132" height="104" rx="20" fill="none" stroke="#FFFFFF" stroke-width="14"></rect>
+          <rect x="196" y="106" width="20" height="44" rx="10" fill="#FFFFFF"></rect>
+          <rect x="72" y="96" width="40" height="64" rx="8" fill="#3B7DF0"></rect>
+          <rect x="120" y="96" width="40" height="64" rx="8" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><rect x="52" y="76" width="132" height="104" rx="20" fill="none" stroke="#FFFFFF" stroke-width="14"></rect><rect x="196" y="106" width="20" height="44" rx="10" fill="#FFFFFF"></rect><rect x="72" y="96" width="40" height="64" rx="8" fill="#3B7DF0"></rect><rect x="120" y="96" width="40" height="64" rx="8" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><rect x="52" y="76" width="132" height="104" rx="20" fill="none" stroke="#FFFFFF" stroke-width="14"></rect><rect x="196" y="106" width="20" height="44" rx="10" fill="#FFFFFF"></rect><rect x="72" y="96" width="40" height="64" rx="8" fill="#3B7DF0"></rect><rect x="120" y="96" width="40" height="64" rx="8" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><rect x="52" y="76" width="132" height="104" rx="20" fill="none" stroke="#FFFFFF" stroke-width="14"></rect><rect x="196" y="106" width="20" height="44" rx="10" fill="#FFFFFF"></rect><rect x="72" y="96" width="40" height="64" rx="8" fill="#3B7DF0"></rect><rect x="120" y="96" width="40" height="64" rx="8" fill="#E8703A"></rect></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">공급원의 은유. 두 칸이 전압·전류 채널을 겸함.</div>
+    </div>
+
+    <div id="3d" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3d</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Sine + rail</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect>
+          <path d="M44 148 C74 78, 110 78, 128 118 C146 158, 182 158, 212 96" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round"></path>
+          <rect x="44" y="184" width="168" height="16" rx="8" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><path d="M44 148 C74 78, 110 78, 128 118 C146 158, 182 158, 212 96" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round"></path><rect x="44" y="184" width="168" height="16" rx="8" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><path d="M44 148 C74 78, 110 78, 128 118 C146 158, 182 158, 212 96" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round"></path><rect x="44" y="184" width="168" height="16" rx="8" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><path d="M44 148 C74 78, 110 78, 128 118 C146 158, 182 158, 212 96" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round"></path><rect x="44" y="184" width="168" height="16" rx="8" fill="#E8703A"></rect></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">AC 입력 → DC 레일 변환을 한 장면으로.</div>
+    </div>
+
+    <div id="3e" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3e</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Banana jacks</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect>
+          <circle cx="88" cy="128" r="46" fill="#E8703A"></circle>
+          <circle cx="88" cy="128" r="17" fill="#FFFFFF"></circle>
+          <circle cx="176" cy="128" r="46" fill="#16181C"></circle>
+          <circle cx="176" cy="128" r="17" fill="#FFFFFF"></circle>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="88" cy="128" r="46" fill="#E8703A"></circle><circle cx="88" cy="128" r="17" fill="#FFFFFF"></circle><circle cx="176" cy="128" r="46" fill="#16181C"></circle><circle cx="176" cy="128" r="17" fill="#FFFFFF"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="88" cy="128" r="46" fill="#E8703A"></circle><circle cx="88" cy="128" r="17" fill="#FFFFFF"></circle><circle cx="176" cy="128" r="46" fill="#16181C"></circle><circle cx="176" cy="128" r="17" fill="#FFFFFF"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="88" cy="128" r="46" fill="#E8703A"></circle><circle cx="88" cy="128" r="17" fill="#FFFFFF"></circle><circle cx="176" cy="128" r="46" fill="#16181C"></circle><circle cx="176" cy="128" r="17" fill="#FFFFFF"></circle></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">+/− 단자만 남긴 최소 형태. 16 px에서도 두 점이 또렷.</div>
+    </div>
+
+    <div id="3f" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3f</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Bolt in ring</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect>
+          <circle cx="128" cy="128" r="82" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-dasharray="420 95" transform="rotate(115 128 128)"></circle>
+          <path d="M142 62 L92 138 H124 L112 194 L166 116 H134 Z" fill="#E8703A"></path>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="82" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-dasharray="420 95" transform="rotate(115 128 128)"></circle><path d="M142 62 L92 138 H124 L112 194 L166 116 H134 Z" fill="#E8703A"></path></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="82" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-dasharray="420 95" transform="rotate(115 128 128)"></circle><path d="M142 62 L92 138 H124 L112 194 L166 116 H134 Z" fill="#E8703A"></path></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="82" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-dasharray="420 95" transform="rotate(115 128 128)"></circle><path d="M142 62 L92 138 H124 L112 194 L166 116 H134 Z" fill="#E8703A"></path></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">라이트 버전의 전원 심볼. 2e·2a의 중간 지점.</div>
+    </div>
+
+    <div id="3g" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3g</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Chip</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect>
+          <g fill="#E8703A">
+            <rect x="86" y="34" width="14" height="30" rx="7"></rect>
+            <rect x="121" y="34" width="14" height="30" rx="7"></rect>
+            <rect x="156" y="34" width="14" height="30" rx="7"></rect>
+            <rect x="86" y="192" width="14" height="30" rx="7"></rect>
+            <rect x="121" y="192" width="14" height="30" rx="7"></rect>
+            <rect x="156" y="192" width="14" height="30" rx="7"></rect>
+          </g>
+          <rect x="62" y="62" width="132" height="132" rx="26" fill="#3B7DF0"></rect>
+          <path d="M136 88 L104 138 H126 L118 172 L154 122 H132 Z" fill="#FFFFFF"></path>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><g fill="#E8703A"><rect x="86" y="34" width="14" height="30" rx="7"></rect><rect x="121" y="34" width="14" height="30" rx="7"></rect><rect x="156" y="34" width="14" height="30" rx="7"></rect><rect x="86" y="192" width="14" height="30" rx="7"></rect><rect x="121" y="192" width="14" height="30" rx="7"></rect><rect x="156" y="192" width="14" height="30" rx="7"></rect></g><rect x="62" y="62" width="132" height="132" rx="26" fill="#3B7DF0"></rect><path d="M136 88 L104 138 H126 L118 172 L154 122 H132 Z" fill="#FFFFFF"></path></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><g fill="#E8703A"><rect x="86" y="34" width="14" height="30" rx="7"></rect><rect x="121" y="34" width="14" height="30" rx="7"></rect><rect x="156" y="34" width="14" height="30" rx="7"></rect><rect x="86" y="192" width="14" height="30" rx="7"></rect><rect x="121" y="192" width="14" height="30" rx="7"></rect><rect x="156" y="192" width="14" height="30" rx="7"></rect></g><rect x="62" y="62" width="132" height="132" rx="26" fill="#3B7DF0"></rect><path d="M136 88 L104 138 H126 L118 172 L154 122 H132 Z" fill="#FFFFFF"></path></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><rect x="62" y="62" width="132" height="132" rx="26" fill="#3B7DF0"></rect><path d="M136 88 L104 138 H126 L118 172 L154 122 H132 Z" fill="#FFFFFF"></path></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">벅 컨버터 IC. 16 px에서는 핀을 생략한 단순화 버전 사용.</div>
+    </div>
+
+    <div id="3h" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3h</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Slider stack</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect>
+          <rect x="46" y="86" width="164" height="14" rx="7" fill="#EDEDEA"></rect>
+          <rect x="46" y="86" width="104" height="14" rx="7" fill="#3B7DF0"></rect>
+          <circle cx="150" cy="93" r="20" fill="#16181C"></circle>
+          <rect x="46" y="156" width="164" height="14" rx="7" fill="#EDEDEA"></rect>
+          <rect x="46" y="156" width="62" height="14" rx="7" fill="#E8703A"></rect>
+          <circle cx="108" cy="163" r="20" fill="#16181C"></circle>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><rect x="46" y="86" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="86" width="104" height="14" rx="7" fill="#3B7DF0"></rect><circle cx="150" cy="93" r="20" fill="#16181C"></circle><rect x="46" y="156" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="156" width="62" height="14" rx="7" fill="#E8703A"></rect><circle cx="108" cy="163" r="20" fill="#16181C"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><rect x="46" y="86" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="86" width="104" height="14" rx="7" fill="#3B7DF0"></rect><circle cx="150" cy="93" r="20" fill="#16181C"></circle><rect x="46" y="156" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="156" width="62" height="14" rx="7" fill="#E8703A"></rect><circle cx="108" cy="163" r="20" fill="#16181C"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><rect x="46" y="86" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="86" width="104" height="14" rx="7" fill="#3B7DF0"></rect><circle cx="150" cy="93" r="20" fill="#16181C"></circle><rect x="46" y="156" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="156" width="62" height="14" rx="7" fill="#E8703A"></rect><circle cx="108" cy="163" r="20" fill="#16181C"></circle></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">"조절"이라는 행위 자체를 표현. 제어 소프트웨어라는 성격이 분명.</div>
+    </div>
+
+    <div id="3i" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3i</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Rounded V</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect>
+          <path d="M76 68 L128 186 L180 68" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"></path>
+          <circle cx="128" cy="212" r="13" fill="#E8703A"></circle>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M76 68 L128 186 L180 68" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="128" cy="212" r="13" fill="#E8703A"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M76 68 L128 186 L180 68" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="128" cy="212" r="13" fill="#E8703A"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M76 68 L128 186 L180 68" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="128" cy="212" r="13" fill="#E8703A"></circle></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">전압 V 한 글자. 레터마크지만 도형에 가까워 축소에 강함.</div>
+    </div>
+
+    <div id="3j" style="width:232px; display:flex; flex-direction:column; gap:12px; padding:18px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:9px;">
+        <div style="font:700 11px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 7px; border-radius:5px;">3j</div>
+        <div style="font-size:14px; font-weight:600; color:#1A1917;">Bench unit</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:8px 0;">
+        <svg viewBox="0 0 256 256" style="width:140px; height:140px; display:block; filter:drop-shadow(0 12px 22px rgba(20,20,18,0.2));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect>
+          <rect x="40" y="58" width="176" height="140" rx="22" fill="#FFFFFF" stroke="#C8CACE" stroke-width="4"></rect>
+          <rect x="60" y="78" width="94" height="46" rx="10" fill="#16181C"></rect>
+          <rect x="72" y="92" width="46" height="8" rx="4" fill="#3B7DF0"></rect>
+          <rect x="72" y="106" width="30" height="8" rx="4" fill="#E8703A"></rect>
+          <circle cx="186" cy="101" r="20" fill="#3B7DF0"></circle>
+          <rect x="60" y="146" width="60" height="32" rx="16" fill="#EDEDEA"></rect>
+          <circle cx="164" cy="162" r="16" fill="#E8703A"></circle>
+          <circle cx="198" cy="162" r="16" fill="#16181C"></circle>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding-top:10px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="40" y="58" width="176" height="140" rx="22" fill="#FFFFFF" stroke="#C8CACE" stroke-width="4"></rect><rect x="60" y="78" width="94" height="46" rx="10" fill="#16181C"></rect><rect x="72" y="92" width="46" height="8" rx="4" fill="#3B7DF0"></rect><rect x="72" y="106" width="30" height="8" rx="4" fill="#E8703A"></rect><circle cx="186" cy="101" r="20" fill="#3B7DF0"></circle><rect x="60" y="146" width="60" height="32" rx="16" fill="#EDEDEA"></rect><circle cx="164" cy="162" r="16" fill="#E8703A"></circle><circle cx="198" cy="162" r="16" fill="#16181C"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="40" y="58" width="176" height="140" rx="22" fill="#FFFFFF" stroke="#C8CACE" stroke-width="4"></rect><rect x="60" y="78" width="94" height="46" rx="10" fill="#16181C"></rect><circle cx="186" cy="101" r="20" fill="#3B7DF0"></circle><circle cx="164" cy="162" r="16" fill="#E8703A"></circle><circle cx="198" cy="162" r="16" fill="#16181C"></circle></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="40" y="58" width="176" height="140" rx="22" fill="#FFFFFF" stroke="#C8CACE" stroke-width="4"></rect><rect x="60" y="78" width="94" height="46" rx="10" fill="#16181C"></rect><circle cx="186" cy="101" r="20" fill="#3B7DF0"></circle></svg>
+      </div>
+      <div style="font-size:11px; line-height:1.6; color:#77776F;">실물 벤치 파워서플라이. 서술적이라 큰 크기에서 강하고 16 px은 단순화 필요.</div>
+    </div>
+
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center; padding:16px 20px; background:#16181C; border-radius:12px;">
+    <div style="font:500 11px/1 'JetBrains Mono',monospace; letter-spacing:0.16em; color:#7A7A72;">TASKBAR 48px</div>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M8 176 H248 V194 A54 54 0 0 1 194 248 H62 A54 54 0 0 1 8 194 Z" fill="#E8703A"></path><rect x="60" y="60" width="88" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="100" width="136" height="18" rx="9" fill="#FFFFFF"></rect><rect x="60" y="200" width="64" height="14" rx="7" fill="#FFFFFF"></rect></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9"></rect><path d="M52 176 A76 76 0 0 1 204 176" fill="none" stroke="#EDEDEA" stroke-width="16" stroke-linecap="round"></path><path d="M52 176 A76 76 0 0 1 128 100" fill="none" stroke="#3B7DF0" stroke-width="16" stroke-linecap="round"></path><line x1="128" y1="176" x2="186" y2="126" stroke="#16181C" stroke-width="12" stroke-linecap="round"></line><circle cx="128" cy="176" r="15" fill="#E8703A"></circle></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C" stroke="#2B2E34" stroke-width="4"></rect><rect x="52" y="76" width="132" height="104" rx="20" fill="none" stroke="#FFFFFF" stroke-width="14"></rect><rect x="196" y="106" width="20" height="44" rx="10" fill="#FFFFFF"></rect><rect x="72" y="96" width="40" height="64" rx="8" fill="#3B7DF0"></rect><rect x="120" y="96" width="40" height="64" rx="8" fill="#E8703A"></rect></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013" stroke="#2B2E34" stroke-width="4"></rect><path d="M44 148 C74 78, 110 78, 128 118 C146 158, 182 158, 212 96" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round"></path><rect x="44" y="184" width="168" height="16" rx="8" fill="#E8703A"></rect></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF"></rect><circle cx="88" cy="128" r="46" fill="#E8703A"></circle><circle cx="88" cy="128" r="17" fill="#FFFFFF"></circle><circle cx="176" cy="128" r="46" fill="#16181C"></circle><circle cx="176" cy="128" r="17" fill="#FFFFFF"></circle></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF"></rect><circle cx="128" cy="128" r="82" fill="none" stroke="#3B7DF0" stroke-width="18" stroke-linecap="round" stroke-dasharray="420 95" transform="rotate(115 128 128)"></circle><path d="M142 62 L92 138 H124 L112 194 L166 116 H134 Z" fill="#E8703A"></path></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C" stroke="#2B2E34" stroke-width="4"></rect><g fill="#E8703A"><rect x="86" y="34" width="14" height="30" rx="7"></rect><rect x="121" y="34" width="14" height="30" rx="7"></rect><rect x="156" y="34" width="14" height="30" rx="7"></rect><rect x="86" y="192" width="14" height="30" rx="7"></rect><rect x="121" y="192" width="14" height="30" rx="7"></rect><rect x="156" y="192" width="14" height="30" rx="7"></rect></g><rect x="62" y="62" width="132" height="132" rx="26" fill="#3B7DF0"></rect><path d="M136 88 L104 138 H126 L118 172 L154 122 H132 Z" fill="#FFFFFF"></path></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9"></rect><rect x="46" y="86" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="86" width="104" height="14" rx="7" fill="#3B7DF0"></rect><circle cx="150" cy="93" r="20" fill="#16181C"></circle><rect x="46" y="156" width="164" height="14" rx="7" fill="#EDEDEA"></rect><rect x="46" y="156" width="62" height="14" rx="7" fill="#E8703A"></rect><circle cx="108" cy="163" r="20" fill="#16181C"></circle></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><path d="M76 68 L128 186 L180 68" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="128" cy="212" r="13" fill="#E8703A"></circle></svg>
+    <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#E9EAEC"></rect><rect x="40" y="58" width="176" height="140" rx="22" fill="#FFFFFF" stroke="#C8CACE" stroke-width="4"></rect><rect x="60" y="78" width="94" height="46" rx="10" fill="#16181C"></rect><circle cx="186" cy="101" r="20" fill="#3B7DF0"></circle><circle cx="164" cy="162" r="16" fill="#E8703A"></circle><circle cx="198" cy="162" r="16" fill="#16181C"></circle></svg>
+  </div>
+</section>
+
+<section style="display:flex; flex-direction:column; gap:40px; padding:56px 64px 96px;">
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:820px;">
+    <div style="font:500 12px/1 'JetBrains Mono',monospace; letter-spacing:0.18em; text-transform:uppercase; color:#8A867C;">Turn 2 — 5 concepts</div>
+    <div style="font-size:32px; font-weight:700; letter-spacing:-0.02em; color:#1A1917;">아이콘 시안 5종</div>
+    <div style="font-size:15px; line-height:1.6; color:#57544D; text-wrap:pretty;">앞선 레터마크와 다른 방향 다섯. 모두 같은 팔레트(#3B7DF0 · #E8703A · #16181C)로, 256 px 원본과 48 / 32 / 16 px 축소본을 함께 확인할 수 있습니다.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+
+    <div id="2a" style="width:300px; display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">2a</div>
+        <div style="font-size:15px; font-weight:600; color:#1A1917;">Bolt slab</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:14px 0;">
+        <svg viewBox="0 0 256 256" style="width:180px; height:180px; display:block; filter:drop-shadow(0 14px 26px rgba(20,20,18,0.22));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect>
+          <path d="M148 36 L86 138 H124 L108 220 L172 112 H132 Z" fill="#3B7DF0"></path>
+          <rect x="86" y="236" width="84" height="0" fill="none"></rect>
+          <rect x="36" y="196" width="52" height="12" rx="6" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:14px; padding-top:12px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><path d="M148 36 L86 138 H124 L108 220 L172 112 H132 Z" fill="#3B7DF0"></path><rect x="36" y="196" width="52" height="12" rx="6" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><path d="M148 36 L86 138 H124 L108 220 L172 112 H132 Z" fill="#3B7DF0"></path><rect x="36" y="196" width="52" height="12" rx="6" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C"></rect><path d="M148 36 L86 138 H124 L108 220 L172 112 H132 Z" fill="#3B7DF0"></path><rect x="36" y="196" width="52" height="12" rx="6" fill="#E8703A"></rect></svg>
+        <div style="margin-left:auto; font:400 10px/1.5 'JetBrains Mono',monospace; color:#A8A8A0; text-align:right;">48 · 32 · 16</div>
+      </div>
+      <div style="font-size:12px; line-height:1.6; color:#77776F;">단일 실루엣이라 16 px까지 형태 유지. 가장 즉각적으로 "전원"으로 읽힘.</div>
+    </div>
+
+    <div id="2b" style="width:300px; display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">2b</div>
+        <div style="font-size:15px; font-weight:600; color:#1A1917;">Seven-segment</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:14px 0;">
+        <svg viewBox="0 0 256 256" style="width:180px; height:180px; display:block; filter:drop-shadow(0 14px 26px rgba(20,20,18,0.22));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect>
+          <rect x="40" y="66" width="176" height="124" rx="18" fill="#16181C" stroke="#262A31" stroke-width="3"></rect>
+          <g fill="#3B7DF0">
+            <rect x="66" y="88" width="52" height="12" rx="6"></rect>
+            <rect x="60" y="94" width="12" height="40" rx="6"></rect>
+            <rect x="112" y="94" width="12" height="40" rx="6"></rect>
+            <rect x="66" y="128" width="52" height="12" rx="6"></rect>
+            <rect x="60" y="134" width="12" height="40" rx="6"></rect>
+            <rect x="112" y="134" width="12" height="40" rx="6"></rect>
+            <rect x="66" y="168" width="52" height="12" rx="6"></rect>
+          </g>
+          <circle cx="140" cy="176" r="7" fill="#E8703A"></circle>
+          <g fill="#E8703A">
+            <rect x="158" y="88" width="12" height="52" rx="6"></rect>
+            <rect x="158" y="134" width="40" height="12" rx="6"></rect>
+            <rect x="186" y="88" width="12" height="52" rx="6"></rect>
+            <rect x="158" y="168" width="40" height="12" rx="6"></rect>
+          </g>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:14px; padding-top:12px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><rect x="40" y="66" width="176" height="124" rx="18" fill="#16181C" stroke="#262A31" stroke-width="3"></rect><g fill="#3B7DF0"><rect x="66" y="88" width="52" height="12" rx="6"></rect><rect x="60" y="94" width="12" height="40" rx="6"></rect><rect x="112" y="94" width="12" height="40" rx="6"></rect><rect x="66" y="128" width="52" height="12" rx="6"></rect><rect x="60" y="134" width="12" height="40" rx="6"></rect><rect x="112" y="134" width="12" height="40" rx="6"></rect><rect x="66" y="168" width="52" height="12" rx="6"></rect></g><circle cx="140" cy="176" r="7" fill="#E8703A"></circle><g fill="#E8703A"><rect x="158" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="134" width="40" height="12" rx="6"></rect><rect x="186" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="168" width="40" height="12" rx="6"></rect></g></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><rect x="40" y="66" width="176" height="124" rx="18" fill="#16181C" stroke="#262A31" stroke-width="3"></rect><g fill="#3B7DF0"><rect x="66" y="88" width="52" height="12" rx="6"></rect><rect x="60" y="94" width="12" height="40" rx="6"></rect><rect x="112" y="94" width="12" height="40" rx="6"></rect><rect x="66" y="128" width="52" height="12" rx="6"></rect><rect x="60" y="134" width="12" height="40" rx="6"></rect><rect x="112" y="134" width="12" height="40" rx="6"></rect><rect x="66" y="168" width="52" height="12" rx="6"></rect></g><g fill="#E8703A"><rect x="158" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="134" width="40" height="12" rx="6"></rect><rect x="186" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="168" width="40" height="12" rx="6"></rect></g></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013"></rect><rect x="40" y="66" width="176" height="124" rx="18" fill="#16181C" stroke="#262A31" stroke-width="3"></rect><g fill="#3B7DF0"><rect x="66" y="88" width="52" height="12" rx="6"></rect><rect x="60" y="94" width="12" height="40" rx="6"></rect><rect x="112" y="94" width="12" height="40" rx="6"></rect><rect x="66" y="128" width="52" height="12" rx="6"></rect><rect x="60" y="134" width="12" height="40" rx="6"></rect><rect x="112" y="134" width="12" height="40" rx="6"></rect><rect x="66" y="168" width="52" height="12" rx="6"></rect></g><g fill="#E8703A"><rect x="158" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="134" width="40" height="12" rx="6"></rect><rect x="186" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="168" width="40" height="12" rx="6"></rect></g></svg>
+        <div style="margin-left:auto; font:400 10px/1.5 'JetBrains Mono',monospace; color:#A8A8A0; text-align:right;">48 · 32 · 16</div>
+      </div>
+      <div style="font-size:12px; line-height:1.6; color:#77776F;">계측기 디스플레이 그 자체. 16 px에선 숫자가 뭉개지지만 패널 실루엣은 남음.</div>
+    </div>
+
+    <div id="2c" style="width:300px; display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">2c</div>
+        <div style="font-size:15px; font-weight:600; color:#1A1917;">Dual bars</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:14px 0;">
+        <svg viewBox="0 0 256 256" style="width:180px; height:180px; display:block; filter:drop-shadow(0 14px 26px rgba(20,20,18,0.22));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF"></rect>
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="none" stroke="#DCDCD8" stroke-width="3"></rect>
+          <rect x="60" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect>
+          <rect x="60" y="88" width="42" height="116" rx="21" fill="#3B7DF0"></rect>
+          <rect x="154" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect>
+          <rect x="154" y="140" width="42" height="64" rx="21" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:14px; padding-top:12px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><rect x="60" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="60" y="88" width="42" height="116" rx="21" fill="#3B7DF0"></rect><rect x="154" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="154" y="140" width="42" height="64" rx="21" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><rect x="60" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="60" y="88" width="42" height="116" rx="21" fill="#3B7DF0"></rect><rect x="154" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="154" y="140" width="42" height="64" rx="21" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF" stroke="#DCDCD8" stroke-width="3"></rect><rect x="60" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="60" y="88" width="42" height="116" rx="21" fill="#3B7DF0"></rect><rect x="154" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="154" y="140" width="42" height="64" rx="21" fill="#E8703A"></rect></svg>
+        <div style="margin-left:auto; font:400 10px/1.5 'JetBrains Mono',monospace; color:#A8A8A0; text-align:right;">48 · 32 · 16</div>
+      </div>
+      <div style="font-size:12px; line-height:1.6; color:#77776F;">전압·전류 두 채널을 게이지로. 추상적이지만 모든 크기에서 또렷하고 확장(3ch 등)이 쉬움.</div>
+    </div>
+
+    <div id="2d" style="width:300px; display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">2d</div>
+        <div style="font-size:15px; font-weight:600; color:#1A1917;">USB-C plug</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:14px 0;">
+        <svg viewBox="0 0 256 256" style="width:180px; height:180px; display:block; filter:drop-shadow(0 14px 26px rgba(20,20,18,0.22));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect>
+          <rect x="56" y="96" width="144" height="64" rx="32" fill="#FFFFFF"></rect>
+          <rect x="82" y="118" width="92" height="20" rx="10" fill="#3B7DF0"></rect>
+          <rect x="116" y="46" width="24" height="52" rx="12" fill="#FFFFFF"></rect>
+          <rect x="116" y="158" width="24" height="52" rx="12" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:14px; padding-top:12px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><rect x="56" y="96" width="144" height="64" rx="32" fill="#FFFFFF"></rect><rect x="82" y="118" width="92" height="20" rx="10" fill="#3B7DF0"></rect><rect x="116" y="46" width="24" height="52" rx="12" fill="#FFFFFF"></rect><rect x="116" y="158" width="24" height="52" rx="12" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><rect x="56" y="96" width="144" height="64" rx="32" fill="#FFFFFF"></rect><rect x="82" y="118" width="92" height="20" rx="10" fill="#3B7DF0"></rect><rect x="116" y="46" width="24" height="52" rx="12" fill="#FFFFFF"></rect><rect x="116" y="158" width="24" height="52" rx="12" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><rect x="56" y="96" width="144" height="64" rx="32" fill="#FFFFFF"></rect><rect x="82" y="118" width="92" height="20" rx="10" fill="#3B7DF0"></rect><rect x="116" y="46" width="24" height="52" rx="12" fill="#FFFFFF"></rect><rect x="116" y="158" width="24" height="52" rx="12" fill="#E8703A"></rect></svg>
+        <div style="margin-left:auto; font:400 10px/1.5 'JetBrains Mono',monospace; color:#A8A8A0; text-align:right;">48 · 32 · 16</div>
+      </div>
+      <div style="font-size:12px; line-height:1.6; color:#77776F;">PD의 정체성을 직접 표현. USB-C 커넥터 + 전력 흐름. 유사 툴과 겹칠 여지는 있음.</div>
+    </div>
+
+    <div id="2e" style="width:300px; display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFFFF; border:1px solid #E4E4E1; border-radius:12px;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">2e</div>
+        <div style="font-size:15px; font-weight:600; color:#1A1917;">Knob ring</div>
+      </div>
+      <div style="display:flex; justify-content:center; padding:14px 0;">
+        <svg viewBox="0 0 256 256" style="width:180px; height:180px; display:block; filter:drop-shadow(0 14px 26px rgba(20,20,18,0.22));">
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9"></rect>
+          <rect x="8" y="8" width="240" height="240" rx="54" fill="none" stroke="#DCDCD8" stroke-width="3"></rect>
+          <circle cx="128" cy="128" r="78" fill="none" stroke="#EDEDEA" stroke-width="20"></circle>
+          <circle cx="128" cy="128" r="78" fill="none" stroke="#3B7DF0" stroke-width="20" stroke-linecap="round" stroke-dasharray="300 190" transform="rotate(130 128 128)"></circle>
+          <circle cx="128" cy="128" r="44" fill="#16181C"></circle>
+          <rect x="120" y="92" width="16" height="34" rx="8" fill="#E8703A"></rect>
+        </svg>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:14px; padding-top:12px; border-top:1px solid #EDEDEA;">
+        <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="78" fill="none" stroke="#EDEDEA" stroke-width="20"></circle><circle cx="128" cy="128" r="78" fill="none" stroke="#3B7DF0" stroke-width="20" stroke-linecap="round" stroke-dasharray="300 190" transform="rotate(130 128 128)"></circle><circle cx="128" cy="128" r="44" fill="#16181C"></circle><rect x="120" y="92" width="16" height="34" rx="8" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:32px; height:32px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="78" fill="none" stroke="#EDEDEA" stroke-width="20"></circle><circle cx="128" cy="128" r="78" fill="none" stroke="#3B7DF0" stroke-width="20" stroke-linecap="round" stroke-dasharray="300 190" transform="rotate(130 128 128)"></circle><circle cx="128" cy="128" r="44" fill="#16181C"></circle><rect x="120" y="92" width="16" height="34" rx="8" fill="#E8703A"></rect></svg>
+        <svg viewBox="0 0 256 256" style="width:16px; height:16px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9" stroke="#DCDCD8" stroke-width="3"></rect><circle cx="128" cy="128" r="78" fill="none" stroke="#EDEDEA" stroke-width="20"></circle><circle cx="128" cy="128" r="78" fill="none" stroke="#3B7DF0" stroke-width="20" stroke-linecap="round" stroke-dasharray="300 190" transform="rotate(130 128 128)"></circle><circle cx="128" cy="128" r="44" fill="#16181C"></circle><rect x="120" y="92" width="16" height="34" rx="8" fill="#E8703A"></rect></svg>
+        <div style="margin-left:auto; font:400 10px/1.5 'JetBrains Mono',monospace; color:#A8A8A0; text-align:right;">48 · 32 · 16</div>
+      </div>
+      <div style="font-size:12px; line-height:1.6; color:#77776F;">본체의 휠 조작을 상징. 라이트 UI와 톤이 일치하고, 원형이라 어떤 배경에서도 안정적.</div>
+    </div>
+
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:16px 20px; background:#16181C; border-radius:12px;">
+    <div style="font:500 11px/1 'JetBrains Mono',monospace; letter-spacing:0.16em; color:#7A7A72;">TASKBAR 48px</div>
+    <div style="display:flex; gap:16px; align-items:center; margin-left:8px;">
+      <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#16181C" stroke="#2B2E34" stroke-width="4"></rect><path d="M148 36 L86 138 H124 L108 220 L172 112 H132 Z" fill="#3B7DF0"></path><rect x="36" y="196" width="52" height="12" rx="6" fill="#E8703A"></rect></svg>
+      <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#0E1013" stroke="#2B2E34" stroke-width="4"></rect><rect x="40" y="66" width="176" height="124" rx="18" fill="#16181C" stroke="#262A31" stroke-width="3"></rect><g fill="#3B7DF0"><rect x="66" y="88" width="52" height="12" rx="6"></rect><rect x="60" y="94" width="12" height="40" rx="6"></rect><rect x="112" y="94" width="12" height="40" rx="6"></rect><rect x="66" y="128" width="52" height="12" rx="6"></rect><rect x="60" y="134" width="12" height="40" rx="6"></rect><rect x="112" y="134" width="12" height="40" rx="6"></rect><rect x="66" y="168" width="52" height="12" rx="6"></rect></g><g fill="#E8703A"><rect x="158" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="134" width="40" height="12" rx="6"></rect><rect x="186" y="88" width="12" height="52" rx="6"></rect><rect x="158" y="168" width="40" height="12" rx="6"></rect></g></svg>
+      <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FFFFFF"></rect><rect x="60" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="60" y="88" width="42" height="116" rx="21" fill="#3B7DF0"></rect><rect x="154" y="52" width="42" height="152" rx="21" fill="#EDEDEA"></rect><rect x="154" y="140" width="42" height="64" rx="21" fill="#E8703A"></rect></svg>
+      <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#3B7DF0"></rect><rect x="56" y="96" width="144" height="64" rx="32" fill="#FFFFFF"></rect><rect x="82" y="118" width="92" height="20" rx="10" fill="#3B7DF0"></rect><rect x="116" y="46" width="24" height="52" rx="12" fill="#FFFFFF"></rect><rect x="116" y="158" width="24" height="52" rx="12" fill="#E8703A"></rect></svg>
+      <svg viewBox="0 0 256 256" style="width:48px; height:48px;"><rect x="8" y="8" width="240" height="240" rx="54" fill="#FAFAF9"></rect><circle cx="128" cy="128" r="78" fill="none" stroke="#EDEDEA" stroke-width="20"></circle><circle cx="128" cy="128" r="78" fill="none" stroke="#3B7DF0" stroke-width="20" stroke-linecap="round" stroke-dasharray="300 190" transform="rotate(130 128 128)"></circle><circle cx="128" cy="128" r="44" fill="#16181C"></circle><rect x="120" y="92" width="16" height="34" rx="8" fill="#E8703A"></rect></svg>
+    </div>
+    <div style="margin-left:auto; font:400 11px/1.6 'JetBrains Mono',monospace; color:#7A7A72;">다크 작업표시줄 대비</div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

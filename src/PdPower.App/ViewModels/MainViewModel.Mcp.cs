@@ -87,6 +87,7 @@ public sealed partial class MainViewModel : IPdPowerGateway
             IsConnected ? SerialNumber : null,
             OutputEnabled, RegulationLabel,
             Math.Round(MeasuredVolts, 3), Math.Round(MeasuredAmps, 3), Math.Round(MeasuredWatts, 3),
+            Math.Round(EnergyWh, 4),
             InputState, Math.Round(InputVolts, 3),
             ActivePresetId, SetVolts, SetAmps));
 

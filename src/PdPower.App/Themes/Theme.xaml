@@ -49,9 +49,9 @@
 
     <!-- 측정 셀 라벨: 12px #8A8A82 -->
     <Style x:Key="CellCaption" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}" />
-        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="Margin" Value="0,0,0,12" />
     </Style>
 
     <!-- 제어 셀 라벨: 11px #77776F -->
@@ -60,17 +60,34 @@
         <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
     </Style>
 
-    <!-- 측정값: 32px 모노, 단위와 베이스라인 정렬 -->
-    <Style x:Key="MeasureValue" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
-        <Setter Property="FontSize" Value="32" />
+    <!--
+        측정값 서체 — 목업은 Chivo Mono. 시스템에 없으면 폭이 비슷한 모노로 내려간다.
+        셀 캡션(V/A/W/Wh)이 단위를 대신하므로 대형 숫자에는 단위를 붙이지 않는다.
+    -->
+    <FontFamily x:Key="DisplayFont">Chivo Mono, JetBrains Mono, Cascadia Mono, Consolas, Courier New</FontFamily>
+
+    <!--
+        V/A 대형 측정값. 목업은 68px(Chivo Mono 기준)이지만 폴백 폰트(Consolas 등)는
+        글자폭이 넓어 "11.999" 가 셀을 넘친다 — 최악 케이스가 들어가는 58px 로 맞춘다.
+    -->
+    <Style x:Key="MeasureValueBig" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+        <Setter Property="FontSize" Value="58" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    </Style>
+
+    <!-- W/Wh 2단 행 값: 34px -->
+    <Style x:Key="MeasureValueMid" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+        <Setter Property="FontSize" Value="34" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     </Style>
 
     <Style x:Key="MeasureUnit" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
         <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}" />
-        <Setter Property="Margin" Value="4,0,0,0" />
+        <Setter Property="Margin" Value="5,0,0,0" />
     </Style>
 
     <!-- 레일 섹션 제목: 11px 모노 -->

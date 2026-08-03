@@ -88,6 +88,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SetPdVoltageCommand = new AsyncRelayCommand(_ => SetPdVoltageAsync(), _ => IsConnected && !OutputEnabled, ReportError);
         SaveConfigCommand = new AsyncRelayCommand(_ => SaveConfigAsync(), _ => IsConnected, ReportError);
         ClearHistoryCommand = new RelayCommand(_ => { History.Clear(); RefreshWindow(force: true); });
+        ResetEnergyCommand = new RelayCommand(_ => ResetEnergy());
         SelectRangeCommand = new RelayCommand(p => SelectRange(ToInt(p)));
         SetAutoScaleCommand = new RelayCommand(_ => YScaleMode = YScaleMode.Auto);
         SetFitScaleCommand = new RelayCommand(_ => YScaleMode = YScaleMode.Fit);
@@ -242,6 +243,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public double MeasuredWatts => MeasuredVolts * MeasuredAmps;
+
+    // ── 누적 전력량 (Wh) ─────────────────────────────────────────────────
+
+    /// <summary>폴링 스레드만 쓴다. 재접속(transient) 사이에도 이어서 쌓인다.</summary>
+    private double _energyAccumulatorWh;
+
+    /// <summary>UI 스레드에서 RST 요청 → 폴링 루프가 다음 샘플에서 반영.</summary>
+    private volatile bool _energyResetRequested;
+
+    private double _energyWh;
+    public double EnergyWh
+    {
+        get => _energyWh;
+        private set { if (SetField(ref _energyWh, value)) OnPropertyChanged(nameof(EnergyText)); }
+    }
+
+    /// <summary>목업 규칙: 10 미만 3자리, 100 미만 2자리, 이상 1자리.</summary>
+    public string EnergyText =>
+        EnergyWh < 10 ? $"{EnergyWh:F3}" : EnergyWh < 100 ? $"{EnergyWh:F2}" : $"{EnergyWh:F1}";
+
+    /// <summary>누적 전력량만 0으로 — Trend 히스토리는 유지한다.</summary>
+    private void ResetEnergy()
+    {
+        _energyResetRequested = true;
+        if (_pollTask is null) _energyAccumulatorWh = 0;   // 루프가 없으면 직접 지운다
+        EnergyWh = 0;
+        StatusMessage = "누적 전력량을 초기화했습니다.";
+    }
 
     private OutputRegulation _regulation;
     public OutputRegulation Regulation
@@ -559,6 +588,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand SetPdVoltageCommand { get; }
     public AsyncRelayCommand SaveConfigCommand { get; }
     public RelayCommand ClearHistoryCommand { get; }
+    public RelayCommand ResetEnergyCommand { get; }
     public RelayCommand SelectRangeCommand { get; }
     public RelayCommand SetAutoScaleCommand { get; }
     public RelayCommand SetFitScaleCommand { get; }
@@ -690,6 +720,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             DeviceName = FirmwareVersion = SerialNumber = "—";
             History.Clear();
+            _energyAccumulatorWh = 0;   // 폴링이 멈춘 뒤라 직접 지워도 안전하다
+            EnergyWh = 0;
         }
     }
 
@@ -819,7 +851,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>백그라운드가 UI 로 넘기는 한 묶음. 불변이라 참조만 갈아끼우면 된다.</summary>
     private sealed record LiveReading(
         double Volts, double Amps, bool OutputEnabled, OutputRegulation Regulation,
-        string InputState, double InputVolts);
+        string InputState, double InputVolts, double EnergyWh);
 
     private void StartPolling()
     {
@@ -855,6 +887,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         double inputVolts = 0;
         long tick = 0;
 
+        // 전력량 적분용 — 루프 시작마다 null 로: 재접속으로 끊긴 구간을 적분하지 않는다
+        DateTime? lastEnergySample = null;
+
         try
         {
             while (!ct.IsCancellationRequested)
@@ -884,9 +919,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     }
                 }
 
-                _live = new LiveReading(measurement.Volts, measurement.Amps, enabled, regulation, inputState, inputVolts);
-                History.Add(new MeasurementSample(
-                    DateTime.Now, measurement.Volts, measurement.Amps, regulation, enabled));
+                // 누적 전력량: Wh += V × A × Δt(h). 명목 주기가 아니라 실제 경과로 적분한다
+                var now = DateTime.Now;
+                if (_energyResetRequested)
+                {
+                    _energyAccumulatorWh = 0;
+                    _energyResetRequested = false;
+                }
+                if (lastEnergySample is { } last)
+                    _energyAccumulatorWh += measurement.Volts * measurement.Amps * (now - last).TotalHours;
+                lastEnergySample = now;
+
+                _live = new LiveReading(measurement.Volts, measurement.Amps, enabled, regulation,
+                                        inputState, inputVolts, _energyAccumulatorWh);
+                History.Add(new MeasurementSample(now, measurement.Volts, measurement.Amps, regulation, enabled));
 
                 tick++;
                 await ticker.WaitForNextTickAsync(ct).ConfigureAwait(false);
@@ -923,6 +969,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Regulation = reading.Regulation;
         InputState = reading.InputState;
         InputVolts = reading.InputVolts;
+        EnergyWh = reading.EnergyWh;
     }
 
     // ── CSV 내보내기 ─────────────────────────────────────────────────────

@@ -373,14 +373,11 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Margin="14,12">
-                            <TextBlock Text="Voltage" Style="{StaticResource CellCaption}" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding MeasuredVolts, StringFormat={}{0:F3}}"
-                                           Style="{StaticResource MeasureValue}" />
-                                <TextBlock Text="V" Style="{StaticResource MeasureUnit}" VerticalAlignment="Bottom"
-                                           Margin="4,0,0,4" />
-                            </StackPanel>
+                        <!-- 캡션이 단위(V)를 대신하고 숫자를 최대로 키운다 — 목업 개정판 -->
+                        <StackPanel Grid.Row="0" Margin="18,14,18,12">
+                            <TextBlock Text="V" Style="{StaticResource CellCaption}" />
+                            <TextBlock Text="{Binding MeasuredVolts, StringFormat={}{0:F3}}"
+                                       Style="{StaticResource MeasureValueBig}" />
                         </StackPanel>
                         <Border Grid.Row="1" Background="{StaticResource SurfaceAltBrush}" Padding="14,10"
                                 BorderBrush="{StaticResource HairlineSoftBrush}" BorderThickness="0,1,0,0"
@@ -424,14 +421,10 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Margin="14,12">
-                            <TextBlock Text="Current" Style="{StaticResource CellCaption}" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding MeasuredAmps, StringFormat={}{0:F3}}"
-                                           Style="{StaticResource MeasureValue}" />
-                                <TextBlock Text="A" Style="{StaticResource MeasureUnit}" VerticalAlignment="Bottom"
-                                           Margin="4,0,0,4" />
-                            </StackPanel>
+                        <StackPanel Grid.Row="0" Margin="18,14,18,12">
+                            <TextBlock Text="A" Style="{StaticResource CellCaption}" />
+                            <TextBlock Text="{Binding MeasuredAmps, StringFormat={}{0:F3}}"
+                                       Style="{StaticResource MeasureValueBig}" />
                         </StackPanel>
                         <Border Grid.Row="1" Background="{StaticResource SurfaceAltBrush}" Padding="14,10"
                                 BorderBrush="{StaticResource HairlineSoftBrush}" BorderThickness="0,1,0,0"
@@ -475,14 +468,41 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Margin="14,12">
-                            <TextBlock Text="Power" Style="{StaticResource CellCaption}" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding MeasuredWatts, StringFormat={}{0:F2}}"
-                                           Style="{StaticResource MeasureValue}" />
-                                <TextBlock Text="W" Style="{StaticResource MeasureUnit}" VerticalAlignment="Bottom"
-                                           Margin="4,0,0,4" />
-                            </StackPanel>
+                        <!-- 전력(W) + 누적 전력량(Wh) 상하 2단 — 목업 개정판 -->
+                        <StackPanel Grid.Row="0" Margin="18,14,18,12">
+                            <Grid>
+                                <TextBlock Text="W" Style="{StaticResource CellCaption}" Margin="0"
+                                           VerticalAlignment="Bottom" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding MeasuredWatts, StringFormat={}{0:F2}}"
+                                               Style="{StaticResource MeasureValueMid}" />
+                                    <TextBlock Text="W" Style="{StaticResource MeasureUnit}"
+                                               VerticalAlignment="Bottom" Margin="5,0,0,3" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Rectangle Height="1" Fill="{StaticResource HairlineSoftBrush}" Margin="0,10" />
+
+                            <Grid>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                                    <TextBlock Text="Wh" Style="{StaticResource CellCaption}" Margin="0"
+                                               VerticalAlignment="Center" />
+                                    <!-- 누적값만 초기화 — Trend 히스토리는 유지 -->
+                                    <Button Content="RST" Margin="8,0,0,0" Padding="6,2"
+                                            Style="{StaticResource GhostButton}"
+                                            FontFamily="{StaticResource MonoFont}" FontSize="9"
+                                            AutomationProperties.AutomationId="EnergyResetButton"
+                                            ToolTip="누적 전력량 초기화 (그래프 히스토리는 유지)"
+                                            Command="{Binding ResetEnergyCommand}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding EnergyText}"
+                                               Style="{StaticResource MeasureValueMid}"
+                                               Foreground="{StaticResource TextRailValueBrush}" />
+                                    <TextBlock Text="Wh" Style="{StaticResource MeasureUnit}"
+                                               VerticalAlignment="Bottom" Margin="5,0,0,3" />
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                         <Border Grid.Row="1" Background="{StaticResource SurfaceAltBrush}" Padding="14,10"
                                 BorderBrush="{StaticResource HairlineSoftBrush}" BorderThickness="0,1,0,0">

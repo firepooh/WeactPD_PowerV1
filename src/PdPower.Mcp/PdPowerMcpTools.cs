@@ -15,7 +15,7 @@ namespace PdPower.Mcp;
 public sealed class PdPowerMcpTools(IPdPowerGateway gateway)
 {
     [McpServerTool(Name = "get_status")]
-    [Description("전원 장치의 현재 상태를 읽는다: 연결 여부, 출력 on/off, CV/CC/OC 판정, 실측 전압(V)/전류(A)/전력(W), 입력(PD) 상태, 활성 프리셋과 설정값.")]
+    [Description("전원 장치의 현재 상태를 읽는다: 연결 여부, 출력 on/off, CV/CC/OC 판정, 실측 전압(V)/전류(A)/전력(W), 누적 전력량(Wh), 입력(PD) 상태, 활성 프리셋과 설정값.")]
     public Task<McpStatus> GetStatus(CancellationToken ct)
         => Guard(() => gateway.GetStatusAsync(ct));
 

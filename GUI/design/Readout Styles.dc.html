@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Chivo+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#EDECE8; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#1A1917; text-decoration:underline; }
+  a:hover { color:oklch(0.5 0.13 255); }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:36px; padding:56px 64px 96px;">
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:860px;">
+    <div style="font:500 12px/1 'JetBrains Mono',monospace; letter-spacing:0.18em; text-transform:uppercase; color:#8A867C;">Readout — 5 options</div>
+    <div style="font-size:32px; font-weight:700; letter-spacing:-0.02em; color:#1A1917;">전압 · 전류 · 전력 · 전력량 표시부 시안</div>
+    <div style="font-size:15px; line-height:1.6; color:#57544D; text-wrap:pretty;">본체와 동일한 폭(956px)으로 다섯 가지. 값은 실시간으로 흐르며, 아래 설정 행은 현재 본체 그대로 두고 표시부만 교체하는 전제입니다.</div>
+  </div>
+
+  <div id="r1" style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:baseline; gap:10px;">
+      <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">r1</div>
+      <div style="font-size:16px; font-weight:600; color:#1A1917;">Light plain — 라이트 대형 수치</div>
+      <div style="font-size:13px; color:#8A867C;">본체 톤 유지 · 단위는 값 뒤 작게 · 가장 조용함</div>
+    </div>
+    <div style="width:956px; background:#FFFFFF; border:1px solid #EDEDEA; border-radius:9px; display:flex; overflow:hidden;">
+      <div style="flex:1; min-width:0; padding:14px 14px; display:flex; flex-direction:column; border-right:1px solid #F2F2F0;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:10px; color:#77776F;">V</div>
+        <div style="font:400 66px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ voltage }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:14px 14px; display:flex; flex-direction:column; border-right:1px solid #F2F2F0;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:10px; color:#77776F;">A</div>
+        <div style="font:400 66px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ current }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:14px 14px; display:flex; flex-direction:column; border-right:1px solid #F2F2F0;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:10px; color:#77776F;">W</div>
+        <div style="font:400 66px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ power }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:14px 14px; display:flex; flex-direction:column;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:10px; color:#77776F;">Wh</div>
+        <div style="font:400 66px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ energy }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="r2" style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:baseline; gap:10px;">
+      <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">r2</div>
+      <div style="font-size:16px; font-weight:600; color:#1A1917;">One dark bar — 단일 계측 바</div>
+      <div style="font-size:13px; color:#8A867C;">검은 띠 하나에 세 값 · 발광 없이 담백하게</div>
+    </div>
+    <div style="width:956px; background:#14171B; border-radius:9px; display:flex; overflow:hidden;">
+      <div style="flex:1; min-width:0; padding:16px 18px; border-right:1px solid #23282F;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; color:#8A94A0;">V</div>
+        <div style="font:300 72px/1 'JetBrains Mono',monospace; letter-spacing:-0.05em; font-variant-numeric:tabular-nums; text-align:center; color:#F2F4F7;">{{ voltage }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:16px 18px; border-right:1px solid #23282F;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; color:#8A94A0;">A</div>
+        <div style="font:300 72px/1 'JetBrains Mono',monospace; letter-spacing:-0.05em; font-variant-numeric:tabular-nums; text-align:center; color:#F2F4F7;">{{ current }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:16px 18px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; color:#8A94A0;">W</div>
+        <div style="font:300 72px/1 'JetBrains Mono',monospace; letter-spacing:-0.05em; font-variant-numeric:tabular-nums; text-align:center; color:#F2F4F7;">{{ power }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="r3" style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:baseline; gap:10px;">
+      <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">r3</div>
+      <div style="font-size:16px; font-weight:600; color:#1A1917;">VFD glow — 고스트 없는 발광</div>
+      <div style="font-size:13px; color:#8A867C;">채널 색 유지 · 8.888 잔상 제거 · 단위는 좌측 상단 라벨로</div>
+    </div>
+    <div style="width:956px; background:#0D1013; border-radius:9px; display:flex; overflow:hidden;">
+      <div style="flex:1; min-width:0; padding:16px 18px; border-right:1px solid #1C2126;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:oklch(0.72 0.1 195); margin-bottom:6px;">V</div>
+        <div style="text-align:center; font:400 70px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; color:oklch(0.88 0.12 195); text-shadow:0 0 18px oklch(0.7 0.14 195 / 0.6);">{{ voltage }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:16px 18px; border-right:1px solid #1C2126;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:oklch(0.74 0.11 75); margin-bottom:6px;">A</div>
+        <div style="text-align:center; font:400 70px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; color:oklch(0.88 0.13 75); text-shadow:0 0 18px oklch(0.74 0.14 75 / 0.6);">{{ current }}</div>
+      </div>
+      <div style="flex:1; min-width:0; padding:16px 18px;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:#8A94A0; margin-bottom:6px;">W</div>
+        <div style="text-align:center; font:400 70px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; color:#E8EDF2; text-shadow:0 0 16px rgba(210,225,240,0.4);">{{ power }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="r4" style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:baseline; gap:10px;">
+      <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">r4</div>
+      <div style="font-size:16px; font-weight:600; color:#1A1917;">Hero + pair — 전압 우선</div>
+      <div style="font-size:13px; color:#8A867C;">전압을 크게, 전류·전력은 보조로 우측에 쌓음</div>
+    </div>
+    <div style="width:956px; background:#FFFFFF; border:1px solid #EDEDEA; border-radius:9px; display:flex; overflow:hidden;">
+      <div style="flex:1.6; min-width:0; padding:18px 22px; border-right:1px solid #F2F2F0;">
+        <div style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; color:#77776F;">V</div>
+        <div style="font:300 96px/1 'JetBrains Mono',monospace; letter-spacing:-0.055em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ voltage }}</div>
+      </div>
+      <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+        <div style="flex:1; padding:14px 20px; border-bottom:1px solid #F2F2F0; display:flex; align-items:baseline; justify-content:space-between;">
+          <span style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:#77776F;">A</span>
+          <span style="font:400 38px/1 'JetBrains Mono',monospace; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ current }}</span>
+        </div>
+        <div style="flex:1; padding:14px 20px; display:flex; align-items:baseline; justify-content:space-between;">
+          <span style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:#77776F;">W</span>
+          <span style="font:400 38px/1 'JetBrains Mono',monospace; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ power }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="r5" style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:baseline; gap:10px;">
+      <div style="font:700 12px/1 'JetBrains Mono',monospace; background:#1A1917; color:#F7F6F3; padding:5px 8px; border-radius:5px;">r5</div>
+      <div style="font-size:16px; font-weight:600; color:#1A1917;">With bar — 수치 + 한계 바</div>
+      <div style="font-size:13px; color:#8A867C;">설정값 대비 현재 위치를 얇은 바로 · 라이트 톤</div>
+    </div>
+    <div style="width:956px; background:#FFFFFF; border:1px solid #EDEDEA; border-radius:9px; display:flex; overflow:hidden;">
+      <div style="flex:1; min-width:0; padding:16px 18px; border-right:1px solid #F2F2F0; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between;">
+          <span style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:#77776F;">V</span>
+          <span style="font:400 11px/1 'JetBrains Mono',monospace; color:#B0B0A8;">set 9.0</span>
+        </div>
+        <div style="font:300 66px/1 'JetBrains Mono',monospace; letter-spacing:-0.05em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ voltage }}</div>
+        <div style="height:5px; border-radius:3px; background:#F2F2F0; overflow:hidden;">
+          <div style="width:{{ vPct }}%; height:5px; border-radius:3px; background:oklch(0.62 0.15 255);"></div>
+        </div>
+      </div>
+      <div style="flex:1; min-width:0; padding:16px 18px; border-right:1px solid #F2F2F0; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between;">
+          <span style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:#77776F;">A</span>
+          <span style="font:400 11px/1 'JetBrains Mono',monospace; color:#B0B0A8;">limit 2.0</span>
+        </div>
+        <div style="font:300 66px/1 'JetBrains Mono',monospace; letter-spacing:-0.05em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ current }}</div>
+        <div style="height:5px; border-radius:3px; background:#F2F2F0; overflow:hidden;">
+          <div style="width:{{ iPct }}%; height:5px; border-radius:3px; background:oklch(0.68 0.16 30);"></div>
+        </div>
+      </div>
+      <div style="flex:1; min-width:0; padding:16px 18px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between;">
+          <span style="font:700 12px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:#77776F;">W</span>
+          <span style="font:400 11px/1 'JetBrains Mono',monospace; color:#B0B0A8;">max 60</span>
+        </div>
+        <div style="font:300 66px/1 'JetBrains Mono',monospace; letter-spacing:-0.05em; font-variant-numeric:tabular-nums; text-align:center; color:#1A1A18;">{{ power }}</div>
+        <div style="height:5px; border-radius:3px; background:#F2F2F0; overflow:hidden;">
+          <div style="width:{{ pPct }}%; height:5px; border-radius:3px; background:#57574F;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { t: 0, wh: 0 };
+  componentDidMount() { this.timer = setInterval(() => this.setState(s => {
+      const v = 9 * (1 + Math.sin(s.t * 0.6) * 0.0018);
+      const i = 1.5 * (1 + Math.sin(s.t * 0.9) * 0.004);
+      return { t: s.t + 1, wh: s.wh + (v * i) * (0.25 / 3600) };
+    }), 250); }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  renderVals() {
+    const t = this.state.t;
+    const v = 9 * (1 + Math.sin(t * 0.6) * 0.0018);
+    const i = 1.5 * (1 + Math.sin(t * 0.9) * 0.004);
+    const p = v * i;
+    return {
+      voltage: v.toFixed(3),
+      current: i.toFixed(3),
+      power: p.toFixed(2),
+      energy: (wh => wh < 10 ? wh.toFixed(3) : wh < 100 ? wh.toFixed(2) : wh.toFixed(1))(this.state.wh),
+      vPct: Math.min(100, (v / 20) * 100).toFixed(1),
+      iPct: Math.min(100, (i / 2) * 100).toFixed(1),
+      pPct: Math.min(100, (p / 60) * 100).toFixed(1)
+    };
+  }
+}
+</script>
+</body>
+</html>

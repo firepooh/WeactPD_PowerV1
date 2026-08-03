@@ -92,9 +92,13 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 
 ![PdPower.App Monitor view — real device on COM9](docs/images/app-monitor.png)
 
-- 1000×610 window, left rail + main area. Rail: Monitor/Setup/Log nav, presets M0–M4,
-  PD INPUT and PORT cards. Main: three measurement cells (V/A/W + steppers, ON│OFF segment,
-  CV/CC badge), Trend chart, footer.
+- 1000×680 window, left rail + main area. Rail: Monitor/Setup/Log nav, presets M0–M4,
+  PD INPUT and PORT cards. Main: three measurement cells + steppers, ON│OFF segment,
+  CV/CC badge, Trend chart, footer.
+- Measurement cells use **V / A / W / Wh abbreviations** with large digits (58px) instead of
+  word labels. The third cell stacks power (W) and **accumulated energy (Wh)** — integrated as
+  `V×A×Δt` per poll, reset via `RST` (Trend history is kept), also exposed as `energyWh`
+  in MCP `get_status`.
 - Steppers: wheel ±1 / Ctrl+wheel ±0.1, applied to the device immediately.
 - The authoritative design source is the HTML mockup in [`GUI/design/`](GUI/design/) —
   **implementing from the summary spec alone gets the structure wrong; render the mockup.**

@@ -45,6 +45,7 @@ public sealed record McpStatus(
     double MeasuredVolts,
     double MeasuredAmps,
     double MeasuredWatts,
+    double EnergyWh,
     string InputState,
     double InputVolts,
     int ActivePresetId,

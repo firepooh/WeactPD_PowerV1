@@ -11,7 +11,7 @@
 <meta name="design_doc_mode" content="canvas">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   body { margin:0; background:#EDECE8; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
   a { color:#1A1917; text-decoration:underline; }
@@ -73,6 +73,7 @@
           <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
           <div style="display:flex; flex-direction:column; gap:2px;">
             <div style="padding:9px 10px; border-radius:6px; background:#FFFFFF; border:1px solid #E4E4E1; color:#1A1A18; font-size:13px; font-weight:600;">Monitor</div>
+            <div style="padding:9px 10px; border-radius:6px; color:#77776F; font-size:13px;">Setup</div>
             
             
             <div style="padding:9px 10px; border-radius:6px; color:#77776F; font-size:13px;">Log</div>
@@ -89,9 +90,14 @@
               <div style="display:flex; flex-direction:column; gap:5px;">
                 <sc-for list="{{ presets }}" as="p" hint-placeholder-count="5">
                   <div onClick="{{ p.load }}" onDoubleClick="{{ p.edit }}" style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; border:1px solid {{ p.border }}; background:{{ p.bg }}; white-space:nowrap; cursor:{{ p.cursor }}; opacity:{{ p.opacity }}; user-select:none;">
-                    <div style="flex:none; width:26px; height:22px; border-radius:5px; background:{{ p.chipBg }}; display:flex; align-items:center; justify-content:center; font:600 10px/1 'JetBrains Mono',monospace; letter-spacing:0.06em; color:{{ p.chipFg }};">{{ p.label }}</div>
+                    <div style="flex:none; width:28px; height:24px; border-radius:6px; background:{{ p.chipBg }}; border:1px solid {{ p.chipBorder }}; display:flex; align-items:center; justify-content:center; font:700 11px/1 'JetBrains Mono',monospace; letter-spacing:0.04em; color:{{ p.chipFg }};">{{ p.label }}</div>
                     <sc-if value="{{ p.notEdit }}" hint-placeholder-val="{{ true }}">
-                      <span style="flex:1; text-align:right; font:400 11px/1 'JetBrains Mono',monospace; color:{{ p.fg }};">{{ p.spec }}</span>
+                      <div style="flex:1; min-width:0; display:flex; align-items:baseline; justify-content:flex-end; gap:2px; font:500 12px/1 'JetBrains Mono',monospace; font-variant-numeric:tabular-nums;">
+                        <span style="width:36px; text-align:right; color:{{ p.fg }};">{{ p.vTxt }}</span>
+                        <span style="width:13px; text-align:left; font-weight:400; color:#B0B0A8;">V</span>
+                        <span style="width:32px; text-align:right; color:{{ p.fg }};">{{ p.iTxt }}</span>
+                        <span style="width:12px; text-align:left; font-weight:400; color:#B0B0A8;">A</span>
+                      </div>
                     </sc-if>
                     <sc-if value="{{ p.isEdit }}" hint-placeholder-val="{{ false }}">
                       <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
@@ -172,47 +178,63 @@
           <div style="display:flex; box-sizing:border-box; width:100%; padding:18px 22px;">
             <div style="flex:1; min-width:0; border:1px solid #EDEDEA; border-radius:9px; display:flex; overflow:hidden;">
               <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
-                <div style="padding:12px 14px;">
-                  <div style="font-size:12px; color:#8A8A82; margin-bottom:8px;">Voltage</div>
-                  <div style="display:flex; align-items:baseline; gap:4px;"><span style="font:400 32px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ voltage }}</span><span style="font-size:13px; color:#8A8A82;">V</span></div>
+                <div style="padding:16px 18px 14px; display:flex; flex-direction:column;">
+                  <div style="font-size:13px; margin-bottom:12px; color:#77776F;">V</div>
+                  <div style="font:400 68px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ voltage }}</div>
                 </div>
-                <div style="border-top:1px solid #F2F2F0; background:#FAFAF9; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
+                <div style="margin-top:auto; border-top:1px solid #F2F2F0; background:#FAFAF9; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
                   <div style="font-size:11px; color:#77776F;">Set voltage</div>
-                <div onWheel="{{ wheelV }}" style="display:flex; align-items:center; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:7px; overflow:hidden; cursor:ns-resize; user-select:none;">
-                  <div onClick="{{ decV }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-right:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">−</div>
-                  <div style="flex:1; min-width:0; display:flex; align-items:baseline; justify-content:center; gap:3px; padding:6px 0;">
-                    <span style="font:400 17px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ setV }}</span>
-                    <span style="font:400 10px/1 'JetBrains Mono',monospace; color:#A8A8A0;">V</span>
+                  <div onWheel="{{ wheelV }}" style="display:flex; align-items:center; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:7px; overflow:hidden; cursor:ns-resize; user-select:none;">
+                    <div onClick="{{ decV }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-right:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">−</div>
+                    <div style="flex:1; min-width:0; display:flex; align-items:baseline; justify-content:center; gap:3px; padding:6px 0;">
+                      <span style="font:400 17px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ setV }}</span>
+                      <span style="font:400 10px/1 'JetBrains Mono',monospace; color:#A8A8A0;">V</span>
+                    </div>
+                    <div onClick="{{ incV }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-left:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">+</div>
                   </div>
-                  <div onClick="{{ incV }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-left:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">+</div>
-                </div>
                 </div>
               </div>
               <div style="width:1px; background:#F2F2F0;"></div>
               <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
-                <div style="padding:12px 14px;">
-                  <div style="font-size:12px; color:#8A8A82; margin-bottom:8px;">Current</div>
-                  <div style="display:flex; align-items:baseline; gap:4px;"><span style="font:400 32px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ current }}</span><span style="font-size:13px; color:#8A8A82;">A</span></div>
+                <div style="padding:16px 18px 14px; display:flex; flex-direction:column;">
+                  <div style="font-size:13px; margin-bottom:12px; color:#77776F;">C</div>
+                  <div style="font:400 68px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ current }}</div>
                 </div>
-                <div style="border-top:1px solid #F2F2F0; background:#FAFAF9; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
+                <div style="margin-top:auto; border-top:1px solid #F2F2F0; background:#FAFAF9; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
                   <div style="font-size:11px; color:#77776F;">Current limit</div>
-                <div onWheel="{{ wheelI }}" style="display:flex; align-items:center; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:7px; overflow:hidden; cursor:ns-resize; user-select:none;">
-                  <div onClick="{{ decI }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-right:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">−</div>
-                  <div style="flex:1; min-width:0; display:flex; align-items:baseline; justify-content:center; gap:3px; padding:6px 0;">
-                    <span style="font:400 17px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ setI }}</span>
-                    <span style="font:400 10px/1 'JetBrains Mono',monospace; color:#A8A8A0;">A</span>
+                  <div onWheel="{{ wheelI }}" style="display:flex; align-items:center; background:#FFFFFF; border:1px solid #DCDCD8; border-radius:7px; overflow:hidden; cursor:ns-resize; user-select:none;">
+                    <div onClick="{{ decI }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-right:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">−</div>
+                    <div style="flex:1; min-width:0; display:flex; align-items:baseline; justify-content:center; gap:3px; padding:6px 0;">
+                      <span style="font:400 17px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ setI }}</span>
+                      <span style="font:400 10px/1 'JetBrains Mono',monospace; color:#A8A8A0;">A</span>
+                    </div>
+                    <div onClick="{{ incI }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-left:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">+</div>
                   </div>
-                  <div onClick="{{ incI }}" style="width:26px; text-align:center; font-size:14px; color:#8A8A82; border-left:1px solid #EDEDEA; padding:6px 0; cursor:pointer;">+</div>
-                </div>
                 </div>
               </div>
               <div style="width:1px; background:#F2F2F0;"></div>
               <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
-                <div style="padding:12px 14px;">
-                  <div style="font-size:12px; color:#8A8A82; margin-bottom:8px;">Power</div>
-                  <div style="display:flex; align-items:baseline; gap:4px;"><span style="font:400 32px/1 'JetBrains Mono',monospace; color:#1A1A18;">{{ power }}</span><span style="font-size:13px; color:#8A8A82;">W</span></div>
+                <div style="padding:16px 18px 14px; display:flex; flex-direction:column; gap:10px;">
+                  <div style="display:flex; align-items:baseline; justify-content:space-between;">
+                    <div style="font-size:13px; color:#77776F;">P</div>
+                    <div style="display:flex; align-items:baseline; gap:5px;">
+                      <span style="font:400 34px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; color:#1A1A18;">{{ power }}</span>
+                      <span style="font:400 12px/1 'JetBrains Mono',monospace; color:#8A8A82;">W</span>
+                    </div>
+                  </div>
+                  <div style="height:1px; background:#F2F2F0;"></div>
+                  <div style="display:flex; align-items:baseline; justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <div style="font-size:13px; color:#77776F;">E</div>
+                      <div onClick="{{ resetEnergy }}" title="누적 전력량 초기화" style="padding:2px 6px; border:1px solid #E4E4E1; border-radius:4px; font:500 9px/1.4 'JetBrains Mono',monospace; letter-spacing:0.06em; color:#8A8A82; cursor:pointer;">RST</div>
+                    </div>
+                    <div style="display:flex; align-items:baseline; gap:5px;">
+                      <span style="font:400 34px/1 'Chivo Mono','JetBrains Mono',monospace; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; color:#57574F;">{{ energy }}</span>
+                      <span style="font:400 12px/1 'JetBrains Mono',monospace; color:#8A8A82;">Wh</span>
+                    </div>
+                  </div>
                 </div>
-                <div style="border-top:1px solid #F2F2F0; background:#FAFAF9; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
+                <div style="margin-top:auto; border-top:1px solid #F2F2F0; background:#FAFAF9; padding:10px 14px; display:flex; flex-direction:column; gap:7px;">
                   <div style="display:flex; align-items:center; justify-content:space-between;">
                     <div style="font-size:11px; color:#77776F;">Output</div>
                     <div style="font:500 10px/1 'JetBrains Mono',monospace; letter-spacing:0.1em; color:{{ outColor }};">{{ regMode }}</div>
@@ -317,7 +339,7 @@ class Component extends DCLogic {
 
   newDevice(port) {
     return {
-      port, connected: true, output: false,
+      port, connected: true, output: false, wh: 0,
       setV: 9, setI: 2, appliedV: 9, appliedI: 2,
       pdRequest: 20, pdActual: 20.098,
       presets: null, selected: 3, editing: null,
@@ -359,7 +381,7 @@ class Component extends DCLogic {
       t: s.t + 1,
       devices: s.devices.map(d => {
         const m = this.measureOf(d);
-        return { ...d, hist: [...d.hist, { v: m.v, i: m.i }].slice(-64) };
+        return { ...d, wh: (d.wh ?? 0) + m.v * m.i * (0.25 / 3600), hist: [...d.hist, { v: m.v, i: m.i }].slice(-64) };
       })
     }));
   }
@@ -467,6 +489,7 @@ class Component extends DCLogic {
   /* 그래프 */
   toggleGraph = () => this.setState(s => ({ graph: !s.graph }));
   clearHist = () => this.patch(() => ({ hist: [] }));
+  resetEnergy = () => this.patch(() => ({ wh: 0 }));
 
   /* 축 */
   niceMax(peak, hardMax) {
@@ -544,15 +567,16 @@ class Component extends DCLogic {
         spec: `${p.v.toFixed(1)} V · ${p.i.toFixed(1)} A`,
         cursor: locked ? "not-allowed" : "pointer",
         opacity: locked ? 0.45 : 1,
-        chipBg: k === d.selected ? "oklch(0.62 0.15 255)" : "#F2F2F0",
-        chipFg: k === d.selected ? "#FFFFFF" : "#77776F",
+        chipBg: k === d.selected ? "oklch(0.62 0.15 255)" : "#FFFFFF",
+        chipBorder: k === d.selected ? "oklch(0.62 0.15 255)" : "#DCDCD8",
+        chipFg: k === d.selected ? "#FFFFFF" : "#57574F",
         load: this.loadPreset(k),
         edit: this.editPresetMode(k),
         isEdit: d.editing === k,
         notEdit: d.editing !== k,
         badge: d.editing === k ? "EDIT" : "",
         badgeColor: "oklch(0.45 0.14 255)",
-        vTxt: p.v.toFixed(1), iTxt: p.i.toFixed(1),
+        vTxt: p.v.toFixed(p.v % 1 ? 1 : 0), iTxt: p.i.toFixed(p.i % 1 ? 1 : 0),
         wheelV: this.presetWheel(k, "v"), wheelI: this.presetWheel(k, "i"),
         incV: this.presetStep(k, "v", 1), decV: this.presetStep(k, "v", -1),
         incI: this.presetStep(k, "i", 1), decI: this.presetStep(k, "i", -1),
@@ -587,7 +611,7 @@ class Component extends DCLogic {
 
       /* 그래프 */
       graphOn: s.graph, graphOff: !s.graph,
-      toggleGraph: this.toggleGraph, clearHist: this.clearHist,
+      toggleGraph: this.toggleGraph, clearHist: this.clearHist, resetEnergy: this.resetEnergy,
       vTicks: this.ticks(vMax), iTicks: this.ticks(iMax),
       vPath: this.path(hist.map(h => h.v), vMax),
       iPath: this.path(hist.map(h => h.i), iMax),
@@ -597,6 +621,7 @@ class Component extends DCLogic {
 
       /* 측정 */
       voltage: v.toFixed(3), current: i.toFixed(3), power: (v * i).toFixed(2),
+      energy: (wh => wh < 10 ? wh.toFixed(3) : wh < 100 ? wh.toFixed(2) : wh.toFixed(1))(d.wh ?? 0),
       statusText: !s.devices.length ? "NO DEVICE" : d.connected ? (d.output ? "RUN" : "IDLE") : "OFFLINE"
     };
   }
