@@ -1,0 +1,348 @@
+<Window x:Class="PdPower.App.MiniWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:PdPower.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="PD Power Mini" Width="440" SizeToContent="Height"
+        WindowStyle="None" ResizeMode="NoResize" Topmost="True" ShowInTaskbar="True"
+        Icon="pack://application:,,,/Assets/pd-power.ico"
+        Background="{StaticResource SurfaceBrush}"
+        Foreground="{StaticResource TextBrush}"
+        FontSize="13" FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+
+    <!-- 목업 2b: 440 × 150 · 항상 위 · 1단 측정 / 2단 프리셋·설정·출력 -->
+    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <StackPanel>
+
+            <!-- 헤더: 드래그로 이동, 핀(항상 위) 토글, 전체 창 복귀 -->
+            <Border Background="{StaticResource SurfaceAltBrush}" Padding="10,7"
+                    BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="OnHeaderDrag">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource TextMutedBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsReconnecting}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource CurrentBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+
+                    <!-- 목업 2b: 미니는 출력 상태까지 묶은 RUN/IDLE/OFFLINE -->
+                    <TextBlock Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center"
+                               FontFamily="{StaticResource MonoFont}" FontSize="11"
+                               Foreground="{StaticResource TextRailValueBrush}">
+                        <Run Text="{Binding SelectedPort, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding MiniStatus, Mode=OneWay}" />
+                    </TextBlock>
+
+                    <!-- 핀: 항상 위 토글 -->
+                    <ToggleButton Grid.Column="2" Width="20" Height="20" Margin="0,0,6,0"
+                                  ToolTip="항상 위 고정"
+                                  AutomationProperties.AutomationId="MiniPinButton"
+                                  IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="Chrome" CornerRadius="5" BorderThickness="1"
+                                        BorderBrush="{StaticResource BorderBrush}" Background="Transparent">
+                                    <TextBlock x:Name="Glyph" Text="▲" FontSize="9"
+                                               Foreground="{StaticResource TextTertiaryBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                        <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                        <Setter TargetName="Glyph" Property="Foreground" Value="{StaticResource AccentDeepBrush}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
+
+                    <!-- 전체 창으로 -->
+                    <Button Grid.Column="3" Width="20" Height="20" Content="⤢" FontSize="9"
+                            ToolTip="전체 창으로" Click="OnExpand"
+                            AutomationProperties.AutomationId="MiniExpandButton">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Chrome" CornerRadius="5" BorderThickness="1"
+                                        BorderBrush="{StaticResource BorderBrush}" Background="Transparent">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      TextBlock.Foreground="{StaticResource TextTertiaryBrush}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- 1단: 측정 V / C / (W·Wh) -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="1" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="1" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 숫자와 단위는 한 TextBlock 의 Run 으로 — 베이스라인이 자동으로 맞는다 (목업 align-items:baseline) -->
+                <TextBlock Grid.Column="0" Margin="12,12" VerticalAlignment="Center">
+                    <Run Text="{Binding MeasuredVolts, StringFormat={}{0:F3}, Mode=OneWay}"
+                         FontFamily="{StaticResource DisplayFont}" FontSize="30"
+                         Foreground="{StaticResource TextBrush}" /><Run Text=" V"
+                         FontFamily="{StaticResource MonoFont}" FontSize="12"
+                         Foreground="{StaticResource TextTertiaryBrush}" />
+                </TextBlock>
+
+                <Rectangle Grid.Column="1" Fill="{StaticResource HairlineSoftBrush}" />
+
+                <TextBlock Grid.Column="2" Margin="12,12" VerticalAlignment="Center">
+                    <Run Text="{Binding MeasuredAmps, StringFormat={}{0:F3}, Mode=OneWay}"
+                         FontFamily="{StaticResource DisplayFont}" FontSize="30"
+                         Foreground="{StaticResource TextBrush}" /><Run Text=" A"
+                         FontFamily="{StaticResource MonoFont}" FontSize="12"
+                         Foreground="{StaticResource TextTertiaryBrush}" />
+                </TextBlock>
+
+                <Rectangle Grid.Column="3" Fill="{StaticResource HairlineSoftBrush}" />
+
+                <StackPanel Grid.Column="4" Margin="12,10" HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <TextBlock HorizontalAlignment="Right">
+                        <Run Text="{Binding MeasuredWatts, StringFormat={}{0:F2}, Mode=OneWay}"
+                             FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                             Foreground="{StaticResource TextBrush}" /><Run Text=" W"
+                             FontFamily="{StaticResource MonoFont}" FontSize="10"
+                             Foreground="{StaticResource TextMutedBrush}" />
+                    </TextBlock>
+                    <TextBlock HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <Run Text="{Binding EnergyText, Mode=OneWay}"
+                             FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                             Foreground="{StaticResource TextRailValueBrush}" /><Run Text=" Wh"
+                             FontFamily="{StaticResource MonoFont}" FontSize="10"
+                             Foreground="{StaticResource TextMutedBrush}" />
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+
+            <Rectangle Height="1" Fill="{StaticResource HairlineBrush}" />
+
+            <!-- 2단: 프리셋 드롭다운 · Set V · Set I · ON│OFF -->
+            <Grid Margin="12,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="96" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 프리셋 선택 — IsOpen 은 코드비하인드가 직접 다룬다 (바인딩 경유는 팝업이 안 뜨는 문제) -->
+                <Button x:Name="PresetDrop" Grid.Column="0" Click="OnPresetDropClick"
+                        AutomationProperties.AutomationId="MiniPresetDrop">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="6" BorderThickness="1" Padding="8,6"
+                                    BorderBrush="{StaticResource BorderStrongBrush}"
+                                    Background="{StaticResource SurfaceBrush}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontFamily="{StaticResource MonoFont}"
+                                               FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextBrush}"
+                                               Text="{Binding ActivePresetId, StringFormat={}M{0}}" />
+                                    <TextBlock Grid.Column="1" Text="▾" FontSize="8"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Popup x:Name="PresetPopup" StaysOpen="False">
+                    <Border Width="186" CornerRadius="6" BorderThickness="1" Padding="4"
+                            BorderBrush="{StaticResource BorderStrongBrush}"
+                            Background="{StaticResource SurfaceBrush}">
+                        <ItemsControl ItemsSource="{Binding Presets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:PresetItem}">
+                                    <Button Click="OnPresetChosen"
+                                            Command="{Binding DataContext.SelectPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding Id}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="Chrome" CornerRadius="4" Padding="7,5" Background="Transparent">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="24" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                                   FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                                                   FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                        <TextBlock Grid.Column="1" TextAlignment="Right"
+                                                                   FontFamily="{StaticResource MonoFont}" FontSize="11"
+                                                                   Foreground="{StaticResource TextRailValueBrush}">
+                                                            <Run Text="{Binding VoltsText, Mode=OneWay}" /><Run Text=" V · " Foreground="{StaticResource TextMutedBrush}" /><Run Text="{Binding AmpsText, Mode=OneWay}" /><Run Text=" A" Foreground="{StaticResource TextMutedBrush}" />
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </Popup>
+
+                <!-- Set V -->
+                <Border Grid.Column="2" Style="{StaticResource StepperPill}" CornerRadius="6"
+                        Tag="voltage" MouseWheel="OnStepperMouseWheel">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="−" Style="{StaticResource StepGlyph}" Width="18"
+                                Command="{Binding NudgeVoltsCommand}" CommandParameter="-1" />
+                        <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                        <TextBlock Grid.Column="2" Padding="0,5" TextAlignment="Center"
+                                   FontFamily="{StaticResource MonoFont}" FontSize="12"
+                                   Text="{Binding SetVolts, StringFormat={}{0:F3}}" />
+                        <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                        <Button Grid.Column="4" Content="+" Style="{StaticResource StepGlyph}" Width="18"
+                                Command="{Binding NudgeVoltsCommand}" CommandParameter="1" />
+                    </Grid>
+                </Border>
+
+                <!-- Set I -->
+                <Border Grid.Column="4" Style="{StaticResource StepperPill}" CornerRadius="6"
+                        Tag="current" MouseWheel="OnStepperMouseWheel">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="−" Style="{StaticResource StepGlyph}" Width="18"
+                                Command="{Binding NudgeAmpsCommand}" CommandParameter="-0.1" />
+                        <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                        <TextBlock Grid.Column="2" Padding="0,5" TextAlignment="Center"
+                                   FontFamily="{StaticResource MonoFont}" FontSize="12"
+                                   Text="{Binding SetAmps, StringFormat={}{0:F3}}" />
+                        <Rectangle Grid.Column="3" Style="{StaticResource PillDivider}" />
+                        <Button Grid.Column="4" Content="+" Style="{StaticResource StepGlyph}" Width="18"
+                                Command="{Binding NudgeAmpsCommand}" CommandParameter="0.1" />
+                    </Grid>
+                </Border>
+
+                <!-- ON│OFF -->
+                <Border Grid.Column="6" Style="{StaticResource StepperPill}" CornerRadius="6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" CornerRadius="5,0,0,5">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Button Content="ON" Padding="10,0" Command="{Binding OutputOnCommand}"
+                                    AutomationProperties.AutomationId="MiniOutputOn">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                        <Setter Property="FontSize" Value="11" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
+                                                <Setter Property="Foreground" Value="White" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
+                        <Rectangle Grid.Column="1" Style="{StaticResource PillDivider}" />
+                        <Border Grid.Column="2" CornerRadius="0,5,5,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding OutputEnabled}" Value="True">
+                                            <Setter Property="Background" Value="Transparent" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Button Content="OFF" Padding="10,0" Command="{Binding OutputOffCommand}"
+                                    AutomationProperties.AutomationId="MiniOutputOff">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentButton}">
+                                        <Setter Property="FontSize" Value="11" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding OutputEnabled}" Value="False">
+                                                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>

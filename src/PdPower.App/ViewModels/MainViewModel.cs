@@ -181,6 +181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!SetField(ref _isConnected, value)) return;
             OnPropertyChanged(nameof(ConnectionState));
+            OnPropertyChanged(nameof(MiniStatus));
             OnPropertyChanged(nameof(LinkLabel));
             RaiseCommandStates();
         }
@@ -195,6 +196,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!SetField(ref _isReconnecting, value)) return;
             OnPropertyChanged(nameof(ConnectionState));
+            OnPropertyChanged(nameof(MiniStatus));
             OnPropertyChanged(nameof(LinkLabel));
             RaiseCommandStates();
         }
@@ -206,6 +208,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     public string ConnectionState =>
         IsConnected ? "ONLINE"
+        : IsReconnecting ? "RECONNECT"
+        : "OFFLINE";
+
+    /// <summary>
+    /// 미니 모드 헤더용 — 목업(2b)은 여기서만 출력 상태까지 묶어 보여준다 (RUN/IDLE).
+    /// 본창은 출력 표시를 ON│OFF 세그먼트 한 곳으로 정리했지만 미니는 시안을 따른다.
+    /// </summary>
+    public string MiniStatus =>
+        IsConnected ? (OutputEnabled ? "RUN" : "IDLE")
         : IsReconnecting ? "RECONNECT"
         : "OFFLINE";
 
@@ -294,6 +305,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         private set
         {
             if (!SetField(ref _outputEnabled, value)) return;
+            OnPropertyChanged(nameof(MiniStatus));
             RaiseCommandStates();
         }
     }

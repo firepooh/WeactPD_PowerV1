@@ -57,6 +57,40 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // ── 미니 모드 ────────────────────────────────────────────────────────
+
+    private MiniWindow? _mini;
+
+    /// <summary>
+    /// 본창을 숨기고 항상-위 미니 위젯으로 전환한다. 같은 ViewModel 을 쓰므로
+    /// 폴링·MCP 서버는 그대로 돌고, ⤢ 로 돌아오면 본창 상태도 이어진다.
+    /// </summary>
+    private void OnMiniModeClick(object sender, RoutedEventArgs e)
+    {
+        if (_mini is not null) return;
+
+        _mini = new MiniWindow
+        {
+            DataContext = _viewModel,
+            // 본창이 있던 화면의 같은 자리 우상단에 — 다른 모니터로 튀지 않는다
+            Left = Left + Width - 440,
+            Top = Top,
+        };
+        _mini.ExpandRequested += (_, _) => _mini?.Close();
+        _mini.Closed += (_, _) =>
+        {
+            _mini = null;
+            if (!IsVisible)
+            {
+                Show();
+                Activate();
+            }
+        };
+
+        _mini.Show();
+        Hide();
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         _viewModel.Dispose();

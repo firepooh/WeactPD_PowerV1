@@ -122,6 +122,24 @@ The chart ([`TrendChart.cs`](src/PdPower.App/Controls/TrendChart.cs)) renders di
 x-axis is time, and with more points than pixels it draws **per-column min/max** — even
 resampling would erase exactly the spikes worth seeing. Frozen/manual states get in-plot badges.
 
+### Mini mode
+
+![Mini mode — 440px always-on-top widget](docs/images/app-mini.png)
+
+The **Mini** button in the header hides the main window and switches to a 440px always-on-top
+widget ([`MiniWindow.xaml`](src/PdPower.App/MiniWindow.xaml), mockup 2b). It shares the same
+ViewModel, so polling, the MCP server, and all state carry over.
+
+- Header: link dot + `port · RUN/IDLE/OFFLINE`, **pin** (topmost toggle), **⤢** (back to full
+  window). Drag the header to move; corners are DWM-rounded (Win11)
+- Row 1: V/A at 30px plus a right-aligned W·Wh stack — units sit on the digit baseline
+  (Runs inside one TextBlock)
+- Row 2: preset dropdown (locked while output is on), mini V/I steppers (wheel ±1 /
+  Ctrl+wheel ±0.1), ON│OFF
+- The preset popup opens at **absolute PointToScreen coordinates** instead of
+  `PlacementTarget`-relative — dodging a WPF bug that places popups on the wrong monitor
+  in mixed-DPI setups
+
 ## 4. AI control — built-in MCP server
 
 Enable **AI control server** in Setup and an MCP server starts inside the app, letting AI

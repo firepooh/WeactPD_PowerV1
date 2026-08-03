@@ -118,6 +118,21 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 x축은 시각이고, 점이 픽셀보다 많으면 **픽셀 열마다 min/max 를 그린다** — 균등 샘플링은
 전원 파형에서 정작 보고 싶은 스파이크를 지워버린다. 정지·수동 상태는 플롯 안 배지로 표시.
 
+### 미니 모드
+
+![미니 모드 — 440px 항상 위 위젯](docs/images/app-mini.png)
+
+헤더의 **Mini** 버튼으로 본창을 숨기고 440px 항상-위 위젯으로 전환한다
+([`MiniWindow.xaml`](src/PdPower.App/MiniWindow.xaml), 목업 2b). 같은 ViewModel 을 쓰므로
+폴링·MCP 서버·상태가 그대로 이어진다.
+
+- 헤더: 연결 점 + `포트 · RUN/IDLE/OFFLINE`, **핀**(항상 위 토글), **⤢**(전체 창 복귀).
+  헤더 드래그로 이동, 모서리는 DWM 라운드(Win11)
+- 1단: V/A 30px + W·Wh 우측 2단 — 단위는 숫자와 베이스라인 정렬(한 TextBlock 의 Run)
+- 2단: 프리셋 드롭다운(출력 중 잠금), V/I 미니 스테퍼(휠 ±1 / Ctrl+휠 ±0.1), ON│OFF
+- 프리셋 팝업은 `PlacementTarget` 상대 배치 대신 **PointToScreen 절대좌표**로 연다 —
+  혼합 DPI 멀티모니터에서 엉뚱한 모니터에 뜨는 WPF 버그 회피
+
 ## 4. AI 제어 — 내장 MCP 서버
 
 Setup 의 **AI control server** 를 켜면 앱 안에서 MCP 서버가 떠서 Claude 같은 AI 가 장치를
