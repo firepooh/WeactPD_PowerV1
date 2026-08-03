@@ -217,7 +217,8 @@ tooling, Setup, auto-reconnect), MCP server, icons, versioning/release automatio
 
 Open: offset correction & discharge in Setup, reboot/factory-reset (behind a calibration
 backup), factory data (0x47) read/write, CV badge shown while disconnected, rail collapse mode,
-inline preset editing, app-settings persistence, triggered burst capture, power (W) series,
+inline preset editing, wider app-settings persistence (the last COM port is already saved to
+`%AppData%\PdPowerTool\settings.json`), triggered burst capture, power (W) series,
 installer packaging.
 
 ## 7. References

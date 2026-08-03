@@ -52,6 +52,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _brightnessDebounce;
     private readonly DispatcherTimer _reconnectTimer;
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
+    private readonly AppSettings _settings = AppSettings.Load();
     private PdPowerDevice? _device;
     private bool _suppressBrightnessWrite;
 
@@ -578,7 +579,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var names = PdPowerDevice.GetPortNames().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
         AvailablePorts.Clear();
         foreach (var name in names) AvailablePorts.Add(name);
-        SelectedPort = names.Contains(SelectedPort) ? SelectedPort : names.FirstOrDefault();
+
+        // 현재 선택 > 마지막 연결 성공 포트 > 첫 항목 — 다른 장치(COM3 등)가 앞에 있어도
+        // 늘 쓰는 포트로 돌아온다
+        SelectedPort =
+            names.Contains(SelectedPort, StringComparer.OrdinalIgnoreCase) ? SelectedPort
+            : names.FirstOrDefault(n => string.Equals(n, _settings.LastPort, StringComparison.OrdinalIgnoreCase))
+              ?? names.FirstOrDefault();
     }
 
     private async Task ConnectAsync()
@@ -642,6 +649,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _device = device;
         IsConnected = true;
+
+        // 연결에 성공한 포트를 기억한다 — 다음 실행에서 우선 선택된다
+        if (!string.Equals(_settings.LastPort, device.PortName, StringComparison.OrdinalIgnoreCase))
+        {
+            _settings.LastPort = device.PortName;
+            _settings.Save();
+        }
+
         await RefreshSettingsAsync().ConfigureAwait(true);
         StartPolling();
     }
