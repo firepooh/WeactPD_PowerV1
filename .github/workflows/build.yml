@@ -98,7 +98,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create '${{ github.ref_name }}'
-          'dist/PdPowerTool.exe#PdPowerTool.exe (GUI, .NET 8 Desktop Runtime 필요)'
+          'dist/PdPowerTool.exe#PdPowerTool.exe (GUI, .NET 8 Desktop + ASP.NET Core Runtime 필요)'
           'dist/PdPowerTool-standalone.exe#PdPowerTool-standalone.exe (GUI, 런타임 포함)'
           'dist/PdPowerCli.exe#PdPowerCli.exe (CLI, .NET 8 Runtime 필요)'
           'dist/PdPowerCli-standalone.exe#PdPowerCli-standalone.exe (CLI, 런타임 포함)'
