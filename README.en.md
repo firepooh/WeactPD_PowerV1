@@ -185,6 +185,10 @@ Register the client (Claude Code, with the server enabled):
 claude mcp add --transport http pdpower http://localhost:5115
 ```
 
+The **Copy register cmd** button in Setup copies exactly this line to the clipboard —
+paste it into a Claude Code terminal and you are done. The Setup **About** row shows the full
+version (including the commit hash) with a link to GitHub Releases.
+
 ### The 10 tools
 
 | Tool | Kind | Action |

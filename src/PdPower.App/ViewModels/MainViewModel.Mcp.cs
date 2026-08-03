@@ -25,8 +25,26 @@ public sealed partial class MainViewModel : IPdPowerGateway
     /// <summary>Setup 화면에 보여줄 접속 주소. 서버가 꺼져 있어도 안내용으로 고정 표시한다.</summary>
     public string McpEndpoint { get; } = $"http://localhost:{McpServerHost.DefaultPort}";
 
+    /// <summary>Claude Code 에 이 서버를 등록하는 한 줄 — Copy 버튼이 그대로 복사한다.</summary>
+    public string McpRegisterCommand => $"claude mcp add --transport http pdpower {McpEndpoint}";
+
     public AsyncRelayCommand McpOnCommand { get; }
     public AsyncRelayCommand McpOffCommand { get; }
+    public RelayCommand CopyMcpRegisterCommand { get; }
+
+    private void CopyMcpRegister()
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(McpRegisterCommand);
+            StatusMessage = "MCP 등록 명령을 복사했습니다 — Claude Code 터미널에 붙여넣으세요.";
+        }
+        catch (Exception ex)
+        {
+            // 다른 프로세스가 클립보드를 잡고 있으면 COMException 이 난다
+            StatusMessage = $"클립보드 복사 실패: {ex.Message}";
+        }
+    }
 
     private async Task SetMcpEnabledAsync(bool enabled)
     {

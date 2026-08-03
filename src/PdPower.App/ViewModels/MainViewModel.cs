@@ -103,6 +103,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // MCP 서버는 장치 연결과 무관하게 켤 수 있다 — 도구가 "연결 안 됨"을 스스로 보고한다
         McpOnCommand = new AsyncRelayCommand(_ => SetMcpEnabledAsync(true), _ => !IsMcpEnabled, ReportError);
         McpOffCommand = new AsyncRelayCommand(_ => SetMcpEnabledAsync(false), _ => IsMcpEnabled, ReportError);
+        CopyMcpRegisterCommand = new RelayCommand(_ => CopyMcpRegister());
 
         _uiPublishTimer = new DispatcherTimer { Interval = UiPublishInterval };
         _uiPublishTimer.Tick += (_, _) => PublishLiveReading();
@@ -142,18 +143,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// SourceLink 등이 붙이는 <c>+커밋해시</c> 접미사는 잘라낸다.
     /// </summary>
     /// <remarks>WPF 는 인스턴스 경로로 static 속성을 못 찾으므로 값만 캐시하고 인스턴스로 노출한다.</remarks>
+    private static readonly string CachedVersionFull = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+        .InformationalVersion ?? "?";
+
     private static readonly string CachedVersion = ResolveAppVersion();
 
     public string AppVersion => CachedVersion;
 
+    /// <summary>커밋 해시 접미사까지 포함한 전체 버전 — Setup About·레일 툴팁용.</summary>
+    public string AppVersionFull => CachedVersionFull;
+
     private static string ResolveAppVersion()
     {
-        string version = Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion ?? "?";
-
-        int plus = version.IndexOf('+');
-        return plus > 0 ? version[..plus] : version;
+        int plus = CachedVersionFull.IndexOf('+');
+        return plus > 0 ? CachedVersionFull[..plus] : CachedVersionFull;
     }
 
     // ── 연결 ─────────────────────────────────────────────────────────────

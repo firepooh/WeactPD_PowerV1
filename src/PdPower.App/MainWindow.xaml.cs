@@ -49,6 +49,14 @@ public partial class MainWindow : Window
     /// <summary>드롭다운을 열 때마다 포트 목록을 다시 읽는다 — USB 장치가 중간에 꽂힐 수 있다.</summary>
     private void OnPortDropDownOpened(object sender, EventArgs e) => _viewModel.RefreshPorts();
 
+    /// <summary>About 링크 — 기본 브라우저로 연다.</summary>
+    private void OnNavigateUri(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        System.Diagnostics.Process.Start(
+            new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+        e.Handled = true;
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         _viewModel.Dispose();

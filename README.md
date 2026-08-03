@@ -210,6 +210,9 @@ COM 포트는 한 프로세스만 열 수 있다. 별도 MCP 서버 프로세스
 claude mcp add --transport http pdpower http://localhost:5115
 ```
 
+Setup 의 **Copy register cmd** 버튼이 이 명령을 그대로 클립보드에 복사한다 —
+Claude Code 터미널에 붙여넣기만 하면 된다.
+
 ### 도구 10종
 
 | 도구 | 종류 | 동작 |
@@ -389,6 +392,8 @@ dotnet run --project src/PdPower.App
   - [x] Setup 화면 — OCP on/off, LCD 밝기 슬라이더, 설정 저장(`0x44`) + 미저장 표시
   - [x] USB 단절 시 자동 재접속 대기 (아래 참조)
   - [x] 내장 MCP 서버 — AI 로 장치 읽기/제어, Setup 토글, `[MCP]` 로그 (§4)
+  - [x] MCP 등록 명령 복사 버튼 (Setup → Copy register cmd)
+  - [x] Setup About — 전체 버전(커밋 해시 포함) + GitHub Releases 링크, 레일 버전 툴팁
   - [x] 앱·CLI exe 아이콘 + 창 타이틀바 아이콘 (`GUI/icon/pd-power.ico`)
   - [ ] Setup 나머지: 오프셋 보정, 방전(읽기 명령 없음에 유의)
   - [ ] Setup 유지보수: 재부팅(`0x40`), 공장 초기화(`0x45`) — `0xC7` 교정값 백업 기능을 먼저 붙일 것
