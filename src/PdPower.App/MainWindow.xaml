@@ -7,7 +7,7 @@
         xmlns:ctl="clr-namespace:PdPower.App.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="PD Power Tool" Height="610" Width="1000" MinHeight="540" MinWidth="860"
+        Title="PD Power Tool" Height="680" Width="1000" MinHeight="540" MinWidth="860"
         Icon="pack://application:,,,/Assets/pd-power.ico"
         Background="{StaticResource SurfaceBrush}"
         Foreground="{StaticResource TextBrush}"
