@@ -198,9 +198,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>헤더 상태 칩 표시용 — RUN / IDLE / RECONNECT / OFFLINE.</summary>
+    /// <summary>
+    /// 헤더 상태 칩 표시용 — ONLINE / RECONNECT / OFFLINE.
+    /// 출력 상태는 섞지 않는다: 출력은 가운데 ON│OFF 세그먼트 한 곳에서만 보여준다.
+    /// </summary>
     public string ConnectionState =>
-        IsConnected ? (OutputEnabled ? "RUN" : "IDLE")
+        IsConnected ? "ONLINE"
         : IsReconnecting ? "RECONNECT"
         : "OFFLINE";
 
@@ -261,7 +264,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         private set
         {
             if (!SetField(ref _outputEnabled, value)) return;
-            OnPropertyChanged(nameof(ConnectionState));
             RaiseCommandStates();
         }
     }
@@ -1021,12 +1023,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : "OCP 꺼짐 — 전류 제한에 걸리면 CC 동작(출력 유지)";
     }
 
+    /// <summary>상태 메시지는 남기지 않는다 — 출력 상태는 ON│OFF 세그먼트 한 곳에서만 표시.</summary>
     private async Task SetOutputAsync(bool enabled)
     {
         if (_device is null) return;
 
         await _device.SetOutputEnabledAsync(enabled).ConfigureAwait(true);
-        StatusMessage = enabled ? "출력 ON" : "출력 OFF";
     }
 
     private async Task SetPdVoltageAsync()
@@ -1130,9 +1132,10 @@ public sealed class PresetItem(int id) : ObservableObject
     public bool IsActive { get => _isActive; set => SetField(ref _isActive, value); }
 
     /// <summary>
-    /// 레일 폭(196 px)에 스크롤바가 생겨도 잘리지 않게 최대한 짧게 — "3.3V · 0.5A".
+    /// 레일 폭(196 px)에 스크롤바가 생겨도 잘리지 않게 최대한 짧게 — "3.3 V · 0.5 A".
+    /// 장치 최소 전압이 1 V 라 0 V 는 "아직 못 읽음"이므로 값 대신 대시를 보여준다.
     /// </summary>
-    public string Summary => $"{Volts:0.##}V · {Amps:0.##}A";
+    public string Summary => Volts <= 0 ? "—" : $"{Volts:0.##} V · {Amps:0.##} A";
 
     public void Update(double volts, double amps, bool isActive)
     {

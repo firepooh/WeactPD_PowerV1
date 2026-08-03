@@ -18,6 +18,8 @@
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#77776F" />
     <SolidColorBrush x:Key="TextTertiaryBrush" Color="#8A8A82" />
     <SolidColorBrush x:Key="TextMutedBrush" Color="#A8A8A0" />
+    <!-- 레일 프리셋 값처럼 좁은 곳에서 읽혀야 하는 보조 텍스트 — Tertiary 보다 한 단계 진하다 -->
+    <SolidColorBrush x:Key="TextRailValueBrush" Color="#57574F" />
     <SolidColorBrush x:Key="AccentBrush" Color="#3B7DF0" />
     <SolidColorBrush x:Key="AccentDeepBrush" Color="#2E5FBF" />
     <SolidColorBrush x:Key="AccentTintBrush" Color="#F2F6FE" />
@@ -320,11 +322,11 @@
         </Setter>
     </Style>
 
-    <!-- 프리셋 한 줄 -->
+    <!-- 프리셋 한 줄 — 목업처럼 행마다 헤어라인 테두리 카드. 활성 행은 호출부가 액센트로 바꾼다 -->
     <Style x:Key="PresetRow" TargetType="Button">
-        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="Padding" Value="8,5" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -334,12 +336,13 @@
                     <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderThickness="1"
                             BorderBrush="{TemplateBinding BorderBrush}" CornerRadius="6"
                             Padding="{TemplateBinding Padding}">
-                        <ContentPresenter VerticalAlignment="Center" />
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- 호버는 색을 덮지 않고 밝기만 — 활성(액센트) 상태에서도 깨지지 않는다 -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceBrush}" />
-                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource HairlineBrush}" />
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource BorderBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
@@ -348,6 +351,78 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- ══ 스크롤바: 기본 크롬을 얇은 플랫 바로 교체 (앱 전역) ══ -->
+
+    <ControlTemplate x:Key="ScrollPageButton" TargetType="RepeatButton">
+        <Border Background="Transparent" />
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="ScrollThumbTemplate" TargetType="Thumb">
+        <Border x:Name="ThumbChrome" CornerRadius="3" Background="#D8D8D2" />
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ThumbChrome" Property="Background" Value="#BFBFB8" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Width" Value="7" />
+        <Setter Property="MinWidth" Value="7" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent" Margin="1,0,0,0">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False"
+                                              Template="{StaticResource ScrollPageButton}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False"
+                                              Template="{StaticResource ScrollPageButton}" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Template="{StaticResource ScrollThumbTemplate}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="7" />
+                <Setter Property="MinHeight" Value="7" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid Background="Transparent" Margin="0,1,0,0">
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand" Focusable="False"
+                                                      Template="{StaticResource ScrollPageButton}" />
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand" Focusable="False"
+                                                      Template="{StaticResource ScrollPageButton}" />
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Template="{StaticResource ScrollThumbTemplate}" />
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ══ ComboBox: 기본 Aero 크롬을 완전히 대체 ══ -->

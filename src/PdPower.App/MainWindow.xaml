@@ -117,7 +117,8 @@
                         <ItemsControl ItemsSource="{Binding Presets}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:PresetItem}">
-                                    <Button Margin="0,0,0,1"
+                                    <!-- 목업의 프리셋 카드: 행마다 헤어라인 테두리, 활성 행은 액센트 테두리 + 채운 칩 -->
+                                    <Button Margin="0,0,0,5"
                                             Command="{Binding DataContext.SelectPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding Id}">
                                         <Button.Style>
@@ -125,6 +126,7 @@
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
                                                         <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -135,16 +137,13 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- 활성 프리셋만 칩에 액센트 테두리 -->
-                                            <Border Grid.Column="0" Width="26" Height="22" CornerRadius="5"
-                                                    BorderThickness="1" Background="Transparent"
-                                                    BorderBrush="Transparent">
+                                            <Border Grid.Column="0" Width="26" Height="22" CornerRadius="5">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{StaticResource SurfaceSunkBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-                                                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                                <Setter Property="Background" Value="{StaticResource AccentBrush}" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -153,10 +152,10 @@
                                                            FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                    <Setter Property="Foreground" Value="{StaticResource AccentDeepBrush}" />
+                                                                    <Setter Property="Foreground" Value="White" />
                                                                     <Setter Property="FontWeight" Value="SemiBold" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
@@ -165,12 +164,22 @@
                                                 </TextBlock>
                                             </Border>
 
-                                            <!-- 레일을 스플리터로 좁히면 잘리므로, 하드 클립 대신 말줄임으로 -->
-                                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Margin="6,0,0,0"
+                                            <!-- 오른쪽 정렬 + 진한 색 — 레일을 좁히면 잘리므로 말줄임 유지 -->
+                                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Margin="8,0,2,0"
                                                        FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                                       Foreground="{StaticResource TextTertiaryBrush}"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" />
+                                                       VerticalAlignment="Center" TextAlignment="Right"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource TextRailValueBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource AccentDeepBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </Grid>
                                     </Button>
                                 </DataTemplate>
@@ -310,11 +319,8 @@
                                     <Style TargetType="Ellipse">
                                         <Setter Property="Fill" Value="{StaticResource TextMutedBrush}" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ConnectionState}" Value="RUN">
+                                            <DataTrigger Binding="{Binding ConnectionState}" Value="ONLINE">
                                                 <Setter Property="Fill" Value="{StaticResource OkBrush}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding ConnectionState}" Value="IDLE">
-                                                <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding ConnectionState}" Value="RECONNECT">
                                                 <Setter Property="Fill" Value="{StaticResource CurrentBrush}" />
