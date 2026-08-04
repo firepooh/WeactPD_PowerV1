@@ -138,7 +138,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
 
         RefreshPorts();
+
+        // 저장된 앱 설정 복원 — 잘못된 값은 각 속성의 클램프가 걸러낸다
+        _isMcpReadOnly = _settings.McpReadOnly;
+        if (_settings.PollIntervalMs is { } savedPoll) PollIntervalMs = savedPoll;
+        if (_settings.StatusDivisor is { } savedDivisor) StatusDivisor = savedDivisor;
+        if (_settings.TrendRangeSeconds is { } savedRange && RangeSeconds.Contains(savedRange))
+            SelectedRangeSeconds = savedRange;
     }
+
+    /// <summary>창 위치처럼 View 가 채워야 하는 항목을 위해 노출한다. 저장은 Dispose 가 한다.</summary>
+    public AppSettings Settings => _settings;
 
     /// <summary>
     /// 실행 중인 앱 버전. CI 가 <c>-p:Version=</c> 으로 넣은 값이 그대로 보인다.
@@ -183,6 +193,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(ConnectionState));
             OnPropertyChanged(nameof(MiniStatus));
             OnPropertyChanged(nameof(LinkLabel));
+            OnPropertyChanged(nameof(RegulationLabel));
             RaiseCommandStates();
         }
     }
@@ -243,42 +254,68 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public double MeasuredVolts
     {
         get => _measuredVolts;
-        private set { if (SetField(ref _measuredVolts, value)) OnPropertyChanged(nameof(MeasuredWatts)); }
+        private set { if (SetField(ref _measuredVolts, value)) RaiseWattsChanged(); }
     }
 
     private double _measuredAmps;
     public double MeasuredAmps
     {
         get => _measuredAmps;
-        private set { if (SetField(ref _measuredAmps, value)) OnPropertyChanged(nameof(MeasuredWatts)); }
+        private set { if (SetField(ref _measuredAmps, value)) RaiseWattsChanged(); }
+    }
+
+    private void RaiseWattsChanged()
+    {
+        OnPropertyChanged(nameof(MeasuredWatts));
+        OnPropertyChanged(nameof(WattsIntText));
+        OnPropertyChanged(nameof(WattsFracText));
     }
 
     public double MeasuredWatts => MeasuredVolts * MeasuredAmps;
 
-    // ── 누적 전력량 (Wh) ─────────────────────────────────────────────────
+    // ── W/Wh 소수점 정렬 표시용 — 정수부/소수부를 나눠 XAML 공유 컬럼에 얹는다 ──
 
-    /// <summary>폴링 스레드만 쓴다. 재접속(transient) 사이에도 이어서 쌓인다.</summary>
-    private double _energyAccumulatorWh;
+    public string WattsIntText => IntPart($"{MeasuredWatts:F3}");
+    public string WattsFracText => FracPart($"{MeasuredWatts:F3}");
+    public string EnergyIntText => IntPart(EnergyText);
+    public string EnergyFracText => FracPart(EnergyText);
 
-    /// <summary>UI 스레드에서 RST 요청 → 폴링 루프가 다음 샘플에서 반영.</summary>
-    private volatile bool _energyResetRequested;
+    private static string IntPart(string s)
+    {
+        int dot = s.IndexOf('.');
+        return dot < 0 ? s : s[..dot];
+    }
+
+    private static string FracPart(string s)
+    {
+        int dot = s.IndexOf('.');
+        return dot < 0 ? "" : s[dot..];
+    }
+
+    // ── 누적 전력량 (Wh) — 적분은 EnergyMeter, 여기는 UI 발행만 ───────────
+
+    private readonly EnergyMeter _energy = new();
 
     private double _energyWh;
     public double EnergyWh
     {
         get => _energyWh;
-        private set { if (SetField(ref _energyWh, value)) OnPropertyChanged(nameof(EnergyText)); }
+        private set
+        {
+            if (!SetField(ref _energyWh, value)) return;
+            OnPropertyChanged(nameof(EnergyText));
+            OnPropertyChanged(nameof(EnergyIntText));
+            OnPropertyChanged(nameof(EnergyFracText));
+        }
     }
 
-    /// <summary>목업 규칙: 10 미만 3자리, 100 미만 2자리, 이상 1자리.</summary>
-    public string EnergyText =>
-        EnergyWh < 10 ? $"{EnergyWh:F3}" : EnergyWh < 100 ? $"{EnergyWh:F2}" : $"{EnergyWh:F1}";
+    public string EnergyText => EnergyMeter.Format(EnergyWh);
 
     /// <summary>누적 전력량만 0으로 — Trend 히스토리는 유지한다.</summary>
     private void ResetEnergy()
     {
-        _energyResetRequested = true;
-        if (_pollTask is null) _energyAccumulatorWh = 0;   // 루프가 없으면 직접 지운다
+        _energy.RequestReset();
+        if (_pollTask is null) _energy.ResetNow();   // 루프가 없으면 직접 지운다
         EnergyWh = 0;
         StatusMessage = "누적 전력량을 초기화했습니다.";
     }
@@ -290,8 +327,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         private set { if (SetField(ref _regulation, value)) OnPropertyChanged(nameof(RegulationLabel)); }
     }
 
-    /// <summary>디자인의 초소형 배지용 약어 — 열거형 이름을 그대로 쓰면 너무 길다.</summary>
-    public string RegulationLabel => Regulation switch
+    /// <summary>
+    /// 디자인의 초소형 배지용 약어 — 열거형 이름을 그대로 쓰면 너무 길다.
+    /// 미연결 시에는 기본값이 CV 로 보이는 게 거짓 정보라 대시를 보여준다.
+    /// </summary>
+    public string RegulationLabel => !IsConnected ? "—" : Regulation switch
     {
         OutputRegulation.ConstantCurrent => "CC",
         OutputRegulation.OverCurrent => "OC",
@@ -624,10 +664,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         // 현재 선택 > 마지막 연결 성공 포트 > 첫 항목 — 다른 장치(COM3 등)가 앞에 있어도
         // 늘 쓰는 포트로 돌아온다
-        SelectedPort =
-            names.Contains(SelectedPort, StringComparer.OrdinalIgnoreCase) ? SelectedPort
-            : names.FirstOrDefault(n => string.Equals(n, _settings.LastPort, StringComparison.OrdinalIgnoreCase))
-              ?? names.FirstOrDefault();
+        SelectedPort = PortPreference.Choose(names, SelectedPort, _settings.LastPort);
     }
 
     private async Task ConnectAsync()
@@ -732,7 +769,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             DeviceName = FirmwareVersion = SerialNumber = "—";
             History.Clear();
-            _energyAccumulatorWh = 0;   // 폴링이 멈춘 뒤라 직접 지워도 안전하다
+            _energy.ResetNow();   // 폴링이 멈춘 뒤라 직접 지워도 안전하다
             EnergyWh = 0;
         }
     }
@@ -899,8 +936,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         double inputVolts = 0;
         long tick = 0;
 
-        // 전력량 적분용 — 루프 시작마다 null 로: 재접속으로 끊긴 구간을 적분하지 않는다
-        DateTime? lastEnergySample = null;
+        // 루프 시작마다 적분 구간을 끊는다 — 재접속으로 생긴 공백을 적분하지 않는다
+        _energy.BreakSpan();
 
         try
         {
@@ -931,19 +968,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     }
                 }
 
-                // 누적 전력량: Wh += V × A × Δt(h). 명목 주기가 아니라 실제 경과로 적분한다
                 var now = DateTime.Now;
-                if (_energyResetRequested)
-                {
-                    _energyAccumulatorWh = 0;
-                    _energyResetRequested = false;
-                }
-                if (lastEnergySample is { } last)
-                    _energyAccumulatorWh += measurement.Volts * measurement.Amps * (now - last).TotalHours;
-                lastEnergySample = now;
+                double energyWh = _energy.Add(now, measurement.Volts, measurement.Amps);
 
                 _live = new LiveReading(measurement.Volts, measurement.Amps, enabled, regulation,
-                                        inputState, inputVolts, _energyAccumulatorWh);
+                                        inputState, inputVolts, energyWh);
                 History.Add(new MeasurementSample(now, measurement.Volts, measurement.Amps, regulation, enabled));
 
                 tick++;
@@ -1005,18 +1034,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             using var writer = new StreamWriter(path, append: false, Encoding.UTF8);
-            writer.WriteLine("timestamp,volts,amps,watts,regulation,output_enabled");
-
-            foreach (var s in window.Samples)
-            {
-                writer.WriteLine(string.Join(',',
-                    s.Timestamp.ToString("O", CultureInfo.InvariantCulture),
-                    s.Volts.ToString("F3", CultureInfo.InvariantCulture),
-                    s.Amps.ToString("F3", CultureInfo.InvariantCulture),
-                    s.Watts.ToString("F3", CultureInfo.InvariantCulture),
-                    s.Regulation,
-                    s.OutputEnabled ? 1 : 0));
-            }
+            MeasurementCsv.Write(writer, window);
 
             StatusMessage = $"{window.Samples.Length}개 샘플을 저장했습니다 — {Path.GetFileName(path)}";
             AppendLog($"CSV {window.Samples.Length} samples → {path}");
@@ -1172,6 +1190,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        // 재시작해도 유지할 앱 설정을 종료 시점에 한 번 저장한다
+        _settings.PollIntervalMs = PollIntervalMs;
+        _settings.StatusDivisor = StatusDivisor;
+        _settings.TrendRangeSeconds = SelectedRangeSeconds;
+        _settings.Save();
+
         _ = _mcpHost?.DisposeAsync();   // 앱 종료 경로 — 완료를 기다릴 필요 없다
         _mcpHost = null;
         Disconnect();

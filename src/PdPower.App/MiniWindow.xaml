@@ -131,22 +131,43 @@
 
                 <Rectangle Grid.Column="3" Fill="{StaticResource HairlineSoftBrush}" />
 
+                <!-- 본창과 같은 규칙: 정수부/소수부 공유 컬럼으로 W·Wh 소수점을 위아래로 맞춘다 -->
                 <StackPanel Grid.Column="4" Margin="12,10" HorizontalAlignment="Right"
-                            VerticalAlignment="Center">
-                    <TextBlock HorizontalAlignment="Right">
-                        <Run Text="{Binding MeasuredWatts, StringFormat={}{0:F2}, Mode=OneWay}"
-                             FontFamily="{StaticResource DisplayFont}" FontSize="15"
-                             Foreground="{StaticResource TextBrush}" /><Run Text=" W"
-                             FontFamily="{StaticResource MonoFont}" FontSize="10"
-                             Foreground="{StaticResource TextMutedBrush}" />
-                    </TextBlock>
-                    <TextBlock HorizontalAlignment="Right" Margin="0,4,0,0">
-                        <Run Text="{Binding EnergyText, Mode=OneWay}"
-                             FontFamily="{StaticResource DisplayFont}" FontSize="15"
-                             Foreground="{StaticResource TextRailValueBrush}" /><Run Text=" Wh"
-                             FontFamily="{StaticResource MonoFont}" FontSize="10"
-                             Foreground="{StaticResource TextMutedBrush}" />
-                    </TextBlock>
+                            VerticalAlignment="Center" Grid.IsSharedSizeScope="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="MiniEnergyInt" />
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="MiniEnergyFrac" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" TextAlignment="Right"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                                   Foreground="{StaticResource TextBrush}"
+                                   Text="{Binding WattsIntText}" />
+                        <TextBlock Grid.Column="1">
+                            <Run Text="{Binding WattsFracText, Mode=OneWay}"
+                                 FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                                 Foreground="{StaticResource TextBrush}" /><Run Text=" W"
+                                 FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                 Foreground="{StaticResource TextMutedBrush}" />
+                        </TextBlock>
+                    </Grid>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="MiniEnergyInt" />
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="MiniEnergyFrac" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" TextAlignment="Right"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                                   Foreground="{StaticResource TextRailValueBrush}"
+                                   Text="{Binding EnergyIntText}" />
+                        <TextBlock Grid.Column="1">
+                            <Run Text="{Binding EnergyFracText, Mode=OneWay}"
+                                 FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                                 Foreground="{StaticResource TextRailValueBrush}" /><Run Text=" Wh"
+                                 FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                 Foreground="{StaticResource TextMutedBrush}" />
+                        </TextBlock>
+                    </Grid>
                 </StackPanel>
             </Grid>
 

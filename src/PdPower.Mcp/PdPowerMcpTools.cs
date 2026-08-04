@@ -29,6 +29,13 @@ public sealed class PdPowerMcpTools(IPdPowerGateway gateway)
     public Task<McpHistoryStats> GetHistoryStats(CancellationToken ct)
         => Guard(() => gateway.GetHistoryStatsAsync(ct));
 
+    [McpServerTool(Name = "get_history_samples")]
+    [Description("Trend 그래프에 보이는 구간의 측정 샘플 시계열을 읽는다 (균등 데시메이션). 파형·추이·이벤트 분석용.")]
+    public Task<McpHistorySamples> GetHistorySamples(
+        [Description("최대 샘플 수 1–2000 (기본 200)")] int maxPoints = 200,
+        CancellationToken ct = default)
+        => Guard(() => gateway.GetHistorySamplesAsync(Math.Clamp(maxPoints, 1, 2000), ct));
+
     [McpServerTool(Name = "set_output")]
     [Description("출력을 켜거나 끈다. 켜면 실제 부하에 전력이 공급되므로 전압/전류 설정을 먼저 확인할 것.")]
     public Task<string> SetOutput(
@@ -76,6 +83,11 @@ public sealed class PdPowerMcpTools(IPdPowerGateway gateway)
     [Description("현재 설정(프리셋, OCP, 오프셋, 밝기, PD 전압)을 장치 플래시에 저장한다. 저장하지 않으면 전원 재인가 시 이전 값으로 돌아간다.")]
     public Task<string> SaveConfig(CancellationToken ct)
         => Guard(() => gateway.SaveConfigAsync(ct));
+
+    [McpServerTool(Name = "reset_device")]
+    [Description("장치를 재부팅한다(SYSTEM_RESET 0x40). CDC 포트가 잠시 사라지고 앱이 자동 재접속한다. 미저장 휘발성 설정은 플래시 값으로 돌아간다. 출력이 켜져 있으면 거부.")]
+    public Task<string> ResetDevice(CancellationToken ct)
+        => Guard(() => gateway.ResetDeviceAsync(ct));
 
     private static async Task<T> Guard<T>(Func<Task<T>> operation)
     {

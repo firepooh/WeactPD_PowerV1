@@ -15,6 +15,9 @@ public interface IPdPowerGateway
 
     Task<McpHistoryStats> GetHistoryStatsAsync(CancellationToken ct);
 
+    /// <param name="maxPoints">균등 데시메이션 상한 — 창의 샘플이 이보다 많으면 솎아서 준다.</param>
+    Task<McpHistorySamples> GetHistorySamplesAsync(int maxPoints, CancellationToken ct);
+
     /// <returns>수행 결과를 설명하는 한 줄 — AI 가 그대로 읽는다.</returns>
     Task<string> SetOutputAsync(bool enabled, CancellationToken ct);
 
@@ -31,6 +34,9 @@ public interface IPdPowerGateway
     Task<string> SetBrightnessAsync(int percent, CancellationToken ct);
 
     Task<string> SaveConfigAsync(CancellationToken ct);
+
+    /// <summary>SYSTEM_RESET(0x40) — 장치 재부팅. 미저장 휘발성 설정은 플래시 값으로 돌아간다.</summary>
+    Task<string> ResetDeviceAsync(CancellationToken ct);
 }
 
 /// <summary>get_status 응답. 실측값은 폴링 루프의 최신 발행값(≤60 ms 지연)이다.</summary>
@@ -66,6 +72,14 @@ public sealed record McpSettings(
     bool HasUnsavedChanges);
 
 public sealed record McpSeries(double Min, double Avg, double Max);
+
+/// <summary>get_history_samples 의 샘플 한 점.</summary>
+public sealed record McpSample(
+    string Time, double Volts, double Amps, double Watts, string Regulation, bool OutputEnabled);
+
+/// <summary>get_history_samples 응답 — 보이는 Trend 구간의 시계열 (균등 데시메이션).</summary>
+public sealed record McpHistorySamples(
+    int RangeSeconds, int TotalSamples, int Returned, McpSample[] Samples);
 
 /// <summary>get_history_stats 응답 — Trend 창에 보이는 구간의 통계.</summary>
 public sealed record McpHistoryStats(

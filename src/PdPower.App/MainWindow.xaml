@@ -440,7 +440,7 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Margin="18,14,18,12">
-                            <TextBlock Text="C" Style="{StaticResource CellCaption}" />
+                            <TextBlock Text="A" Style="{StaticResource CellCaption}" />
                             <TextBlock Text="{Binding MeasuredAmps, StringFormat={}{0:F3}}"
                                        Style="{StaticResource MeasureValueBig}" />
                         </StackPanel>
@@ -486,14 +486,24 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <!-- 전력(W) + 누적 전력량(Wh) 상하 2단 — 목업 개정판 -->
-                        <StackPanel Grid.Row="0" Margin="18,14,18,12">
+                        <!--
+                            전력(W) + 누적 전력량(Wh) 상하 2단 — 값 옆 단위가 종류를 말하므로
+                            별도 라벨은 없다. 소수부 자릿수가 달라도(W 2자리, Wh 1–3자리)
+                            소수점이 위아래로 맞도록 정수부/소수부를 공유 컬럼으로 나눈다.
+                        -->
+                        <StackPanel Grid.Row="0" Margin="18,14,18,12" Grid.IsSharedSizeScope="True">
                             <Grid>
-                                <TextBlock Text="P" Style="{StaticResource CellCaption}" Margin="0"
-                                           VerticalAlignment="Bottom" />
-                                <!-- 숫자·단위를 Run 으로 묶어 베이스라인 정렬 -->
-                                <TextBlock HorizontalAlignment="Right">
-                                    <Run Text="{Binding MeasuredWatts, StringFormat={}{0:F2}, Mode=OneWay}"
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="EnergyInt" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="EnergyFrac" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="1" TextAlignment="Right"
+                                           FontFamily="{StaticResource DisplayFont}" FontSize="34"
+                                           Foreground="{StaticResource TextBrush}"
+                                           Text="{Binding WattsIntText}" />
+                                <TextBlock Grid.Column="2">
+                                    <Run Text="{Binding WattsFracText, Mode=OneWay}"
                                          FontFamily="{StaticResource DisplayFont}" FontSize="34"
                                          Foreground="{StaticResource TextBrush}" /><Run Text=" W"
                                          FontFamily="{StaticResource MonoFont}" FontSize="12"
@@ -504,19 +514,25 @@
                             <Rectangle Height="1" Fill="{StaticResource HairlineSoftBrush}" Margin="0,10" />
 
                             <Grid>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                                    <TextBlock Text="E" Style="{StaticResource CellCaption}" Margin="0"
-                                               VerticalAlignment="Center" />
-                                    <!-- 누적값만 초기화 — Trend 히스토리는 유지 -->
-                                    <Button Content="RST" Margin="8,0,0,0" Padding="6,2"
-                                            Style="{StaticResource GhostButton}"
-                                            FontFamily="{StaticResource MonoFont}" FontSize="9"
-                                            AutomationProperties.AutomationId="EnergyResetButton"
-                                            ToolTip="누적 전력량 초기화 (그래프 히스토리는 유지)"
-                                            Command="{Binding ResetEnergyCommand}" />
-                                </StackPanel>
-                                <TextBlock HorizontalAlignment="Right">
-                                    <Run Text="{Binding EnergyText, Mode=OneWay}"
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="EnergyInt" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="EnergyFrac" />
+                                </Grid.ColumnDefinitions>
+                                <!-- 누적값만 초기화 — Trend 히스토리는 유지 -->
+                                <Button Grid.Column="0" Content="RST" Padding="6,2"
+                                        VerticalAlignment="Center" HorizontalAlignment="Left"
+                                        Style="{StaticResource GhostButton}"
+                                        FontFamily="{StaticResource MonoFont}" FontSize="9"
+                                        AutomationProperties.AutomationId="EnergyResetButton"
+                                        ToolTip="누적 전력량 초기화 (그래프 히스토리는 유지)"
+                                        Command="{Binding ResetEnergyCommand}" />
+                                <TextBlock Grid.Column="1" TextAlignment="Right"
+                                           FontFamily="{StaticResource DisplayFont}" FontSize="34"
+                                           Foreground="{StaticResource TextRailValueBrush}"
+                                           Text="{Binding EnergyIntText}" />
+                                <TextBlock Grid.Column="2">
+                                    <Run Text="{Binding EnergyFracText, Mode=OneWay}"
                                          FontFamily="{StaticResource DisplayFont}" FontSize="34"
                                          Foreground="{StaticResource TextRailValueBrush}" /><Run Text=" Wh"
                                          FontFamily="{StaticResource MonoFont}" FontSize="12"
@@ -1005,6 +1021,10 @@
                                            FontFamily="{StaticResource MonoFont}"
                                            Foreground="{StaticResource TextMutedBrush}"
                                            Text="{Binding McpRegisterCommand, Mode=OneWay}" />
+                                <CheckBox Margin="0,10,0,0" FontSize="11"
+                                          AutomationProperties.AutomationId="McpReadOnlyCheck"
+                                          IsChecked="{Binding IsMcpReadOnly, Mode=TwoWay}"
+                                          Content="AI 읽기 전용 — 제어 도구(set_*, select_preset, save_config)를 거부" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">

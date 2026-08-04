@@ -64,6 +64,7 @@ public sealed partial class MainViewModel : IPdPowerGateway
                 _mcpHost = null;
                 AppendLog($"[MCP] 시작 실패 — {ex.Message}");
                 StatusMessage = $"MCP 서버를 시작하지 못했습니다: {ex.Message}";
+                return;   // 실패한 상태를 저장하지 않는다
             }
         }
         else
@@ -74,6 +75,27 @@ public sealed partial class MainViewModel : IPdPowerGateway
             if (host is not null) await host.DisposeAsync().ConfigureAwait(true);
             AppendLog("[MCP] 서버 중지");
             StatusMessage = "MCP 서버를 중지했습니다.";
+        }
+
+        // 다음 실행에서 같은 상태로 시작한다
+        _settings.McpEnabled = enabled;
+        _settings.Save();
+    }
+
+    /// <summary>켜면 제어 도구(set_*, select_preset, save_config)를 거부한다. 재시작해도 유지.</summary>
+    private bool _isMcpReadOnly;
+    public bool IsMcpReadOnly
+    {
+        get => _isMcpReadOnly;
+        set
+        {
+            if (!SetField(ref _isMcpReadOnly, value)) return;
+            _settings.McpReadOnly = value;
+            _settings.Save();
+            AppendLog($"[MCP] 읽기 전용 {(value ? "ON" : "OFF")}");
+            StatusMessage = value
+                ? "MCP 읽기 전용 — AI 의 제어 도구 호출을 거부합니다."
+                : "MCP 읽기·제어 모두 허용합니다.";
         }
     }
 
@@ -131,6 +153,31 @@ public sealed partial class MainViewModel : IPdPowerGateway
         => await _dispatcher.InvokeAsync(() => new McpHistoryStats(
             SampleCount, SelectedRangeSeconds, IsFrozen,
             ToSeries(Stats.Volts), ToSeries(Stats.Amps), ToSeries(Stats.Watts)));
+
+    /// <remarks>보이는 Trend 창을 균등 데시메이션해 돌려준다 (정지 중이면 정지된 구간).</remarks>
+    async Task<McpHistorySamples> IPdPowerGateway.GetHistorySamplesAsync(int maxPoints, CancellationToken ct)
+        => await _dispatcher.InvokeAsync(() =>
+        {
+            var samples = CurrentWindow.Samples;
+            int total = samples.Length;
+            int take = Math.Clamp(maxPoints, 1, Math.Max(total, 1));
+
+            var picked = new McpSample[total == 0 ? 0 : take];
+            if (total > 0)
+            {
+                double stride = (double)total / picked.Length;
+                for (int i = 0; i < picked.Length; i++)
+                {
+                    var s = samples[Math.Min((int)(i * stride), total - 1)];
+                    picked[i] = new McpSample(
+                        s.Timestamp.ToString("yyyy-MM-dd'T'HH:mm:ss.fff"),
+                        Math.Round(s.Volts, 3), Math.Round(s.Amps, 3), Math.Round(s.Watts, 3),
+                        s.Regulation.ToString(), s.OutputEnabled);
+                }
+            }
+
+            return new McpHistorySamples(SelectedRangeSeconds, total, picked.Length, picked);
+        });
 
     private static McpSeries ToSeries(Core.Models.SeriesStats s)
         => new(Math.Round(s.Min, 3), Math.Round(s.Avg, 3), Math.Round(s.Max, 3));
@@ -209,6 +256,18 @@ public sealed partial class MainViewModel : IPdPowerGateway
             return "현재 설정을 장치 플래시에 저장했습니다.";
         });
 
+    Task<string> IPdPowerGateway.ResetDeviceAsync(CancellationToken ct)
+        => McpInvokeAsync("reset_device", async () =>
+        {
+            // 부하에 전력이 실린 상태에서 AI 가 재부팅하는 사고 방지
+            if (OutputEnabled)
+                throw new InvalidOperationException("출력이 켜져 있습니다 — set_output false 후 재부팅하세요.");
+
+            await _device!.ResetAsync().ConfigureAwait(true);
+            return "재부팅 명령을 보냈습니다 — 포트가 잠시 사라지고 자동 재접속합니다. " +
+                   "미저장 휘발성 설정은 플래시 값으로 돌아갑니다.";
+        });
+
     /// <summary>
     /// 제어 요청을 UI 스레드에서 기존 VM 경로로 실행한다 — 화면·UNSAVED 상태가 함께 갱신되고,
     /// AI 가 무엇을 했는지 Log 에 [MCP] 로 남는다.
@@ -218,6 +277,9 @@ public sealed partial class MainViewModel : IPdPowerGateway
         AppendLog($"[MCP] {what}");
         return await await _dispatcher.InvokeAsync(async () =>
         {
+            if (IsMcpReadOnly)
+                throw new InvalidOperationException(
+                    "읽기 전용 모드입니다 — Setup 의 'AI 읽기 전용' 을 끄면 제어할 수 있습니다.");
             if (_device is null)
                 throw new InvalidOperationException("장치가 연결되어 있지 않습니다 — GUI에서 포트를 먼저 연결하세요.");
             return await action().ConfigureAwait(true);

@@ -10,7 +10,7 @@
     자세한 건 .github/workflows/build.yml 참조.
   -->
   <PropertyGroup>
-    <VersionPrefix>0.3.0</VersionPrefix>
+    <VersionPrefix>0.4.0</VersionPrefix>
   </PropertyGroup>
 
   <PropertyGroup>

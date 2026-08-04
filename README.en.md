@@ -15,6 +15,7 @@ programmable power supply.
 | Design source | [`GUI/design/`](GUI/design/) (HTML mockup + C# spec) — an in-house design, not the vendor tool |
 | Protocol source | [`docs/protocol/`](docs/protocol/) (vendor xlsx ×2 + Python example) |
 | AI control | Built-in MCP server — toggle in Setup, lets Claude etc. read/control the device (§4) |
+| License | [MIT](LICENSE) (bundled Chivo Mono font is OFL 1.1) |
 
 Every read/write command and all 10 MCP tools have been verified on real hardware
 (COM9, firmware `V1.0.2.0_6a997d9a`); the measurements in §9–11 come from the same unit.
@@ -95,11 +96,11 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 - 1000×680 window, left rail + main area. Rail: Monitor/Setup/Log nav, presets M0–M4,
   PD INPUT and PORT cards. Main: three measurement cells + steppers, ON│OFF segment,
   CV/CC badge, Trend chart, footer.
-- Measurement cells use **V / C / P / E abbreviations** with large digits (58px, bundled
+- Measurement cells use **V / A abbreviations** with large digits (58px, bundled
   Chivo Mono — the mockup's 68px overflows the cell with 6-char values like "11.999").
-  The third cell stacks power (W) and **accumulated energy (Wh)** — integrated as `V×A×Δt`
-  per poll, reset via `RST` (Trend history is kept), also exposed as `energyWh` in MCP
-  `get_status`.
+  The third cell stacks power (W) and **accumulated energy (Wh)** with no extra labels —
+  the units beside the values say it all. Wh is integrated as `V×A×Δt` per poll, reset via
+  `RST` (Trend history is kept), also exposed as `energyWh` in MCP `get_status`.
 - Steppers: wheel ±1 / Ctrl+wheel ±0.1, applied to the device immediately.
 - The authoritative design source is the HTML mockup in [`GUI/design/`](GUI/design/) —
   **implementing from the summary spec alone gets the structure wrong; render the mockup.**
@@ -156,16 +157,19 @@ claude mcp add --transport http pdpower http://localhost:5115
 
 | Tool | Action |
 |---|---|
-| `get_status` | connection, output, CV/CC/OC, measured V/A/W, PD input, active preset |
+| `get_status` | connection, output, CV/CC/OC, measured V/A/W, accumulated Wh, PD input, active preset |
 | `get_settings` | presets M0–M4, OCP, brightness, PD voltage — **re-read from the device (knob changes included)** |
 | `get_history_stats` | min/avg/max of V/A/W over the visible Trend window |
+| `get_history_samples` | time series of the visible window (even decimation, up to 2000 points) |
 | `set_output` / `set_setpoint` | output on/off; voltage/current (either argument optional) |
 | `select_preset` / `set_pd_voltage` | **refused while output is on** (same rule as the GUI) |
 | `set_ocp` / `set_brightness` / `save_config` | same as the Setup controls |
+| `reset_device` | reboot the device (0x40) — **refused while output is on**, pairs with auto-reconnect (§10) |
 
 Control requests are marshalled to the UI thread and run through **the same code paths as the
 GUI buttons** (screen and UNSAVED state stay in sync); every AI command is logged with an
-`[MCP]` prefix. All 10 tools hardware-verified (2026-08-03).
+`[MCP]` prefix. The **AI read-only** checkbox in Setup refuses every control tool. Server
+on/off and read-only survive restarts. All 12 tools hardware-verified (2026-08-04).
 
 SDK 2.0 notes: ① nullable parameters also need a **`= null` default** to be optional in the
 schema; ② tool exceptions must be `McpException` or the SDK masks the message;
@@ -188,8 +192,15 @@ WeactPD_PowerV1/
 │  ├─ PdPower.Mcp/                ← 10 MCP tools + localhost:5115 Kestrel host
 │  └─ PdPower.App/                ← WPF GUI (Theme.xaml templates, TrendChart,
 │                                    MainViewModel + MainViewModel.Mcp.cs)
-└─ tests/PdPower.Core.Tests/      ← xUnit ×42
+└─ tests/PdPower.Core.Tests/      ← xUnit ×63
 ```
+
+Window bounds are persisted via **Win32 coordinates** rather than WPF DIPs — self-consistent
+against the system DPI, so the window returns to the same spot even across mixed-scale monitors.
+
+> A PerMonitorV2 migration was attempted and reverted: on a 96-DPI monitor the window shrank
+> physically enough to clip the large digits and squash the chart. Retrying it requires
+> redesigning default/min window sizes and type scale per monitor factor.
 
 ### Versioning · releases
 
@@ -235,14 +246,15 @@ dotnet run --project src/PdPower.App
 
 ## 6. Roadmap
 
-Done: protocol library (+42 tests), CLI, mockup-faithful GUI (background polling, Trend
-tooling, Setup, auto-reconnect), MCP server, icons, versioning/release automation.
+Done: protocol library (+63 tests), CLI, mockup-faithful GUI (background polling, Trend
+tooling, Setup, hardware-verified auto-reconnect, mini mode), MCP server
+(12 tools + read-only mode), icons, versioning/release automation, app-settings persistence
+(`%AppData%\PdPowerTool\settings.json` — last port, MCP on/read-only, poll interval, status
+divisor, Trend range, window bounds in physical px, mini position/mode).
 
-Open: offset correction & discharge in Setup, reboot/factory-reset (behind a calibration
-backup), factory data (0x47) read/write, CV badge shown while disconnected, rail collapse mode,
-inline preset editing, wider app-settings persistence (the last COM port is already saved to
-`%AppData%\PdPowerTool\settings.json`), triggered burst capture, power (W) series,
-installer packaging.
+Open: offset correction & discharge in Setup, factory-reset (behind a calibration backup),
+factory data (0x47) read/write, rail collapse mode, inline preset editing, triggered burst
+capture, power (W) series, installer packaging.
 
 ## 7. References
 
@@ -289,8 +301,9 @@ auto-reconnect. On success, presets/OCP/brightness are re-read (a reboot reverts
 values to flash). The status chip shows `RECONNECT`, Trend history is preserved, and
 `Disconnect` cancels.
 
-Not yet exercised on hardware; test by replugging USB with output off, or sending
-`SYSTEM_RESET` (0x40).
+**Hardware-verified (2026-08-04)**: rebooting the device via MCP `reset_device` (0x40) made
+the CDC port vanish and return — the status chip switched to `RECONNECT` and the app
+re-attached automatically to the same serial number.
 
 ## 11. Measured OCP behavior (12 V, ~21 Ω load, `test-ocp 12.0 0.2`)
 

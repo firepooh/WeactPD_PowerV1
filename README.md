@@ -14,6 +14,7 @@
 | 디자인 원본 | [`GUI/design/`](GUI/design/) (HTML 목업 + C# 스펙) — 제조사 예제 툴이 아니라 자체 디자인 |
 | 프로토콜 원본 | [`docs/protocol/`](docs/protocol/) (제조사 xlsx 2종 + Python 예제) |
 | AI 제어 | 내장 MCP 서버 — Setup 에서 켜면 Claude 등 AI 가 장치를 읽고 제어 (§4) |
+| 라이선스 | [MIT](LICENSE) (내장 Chivo Mono 폰트는 OFL 1.1) |
 
 읽기·쓰기 명령 전부와 MCP 도구 10종을 실장비(COM9, 펌웨어 `V1.0.2.0_6a997d9a`)로 검증했다.
 아래 실측 수치(§9–11)도 모두 이 장비 기준.
@@ -92,10 +93,11 @@ public static byte Crc8(ReadOnlySpan<byte> data)
 
 - 창 1000×680, 좌측 레일 + 우측 메인. 레일: Monitor/Setup/Log 내비, 프리셋 M0–M4,
   PD INPUT, PORT 카드. 메인: 측정 3열 + 스테퍼·ON│OFF·CV/CC 배지, Trend 차트, 푸터.
-- 측정 셀은 단어 라벨 대신 **V / C / P / E 약어** + 대형 숫자(58px, 내장 Chivo Mono —
+- 측정 셀은 단어 라벨 대신 **V / A 약어** + 대형 숫자(58px, 내장 Chivo Mono —
   목업 68px 은 6글자("11.999")가 셀 폭을 넘어 58px 로 고정). 셋째 셀은 전력(W)과
-  **누적 전력량(Wh)** 2단 — Wh 는 폴링마다 `V×A×Δt` 적분, `RST` 로 초기화(Trend
-  히스토리는 유지), MCP `get_status` 의 `energyWh` 로도 노출.
+  **누적 전력량(Wh)** 2단 — 값 옆 단위가 종류를 말하므로 별도 라벨 없음. Wh 는 폴링마다
+  `V×A×Δt` 적분, `RST` 로 초기화(Trend 히스토리는 유지), MCP `get_status` 의
+  `energyWh` 로도 노출.
 - 스테퍼는 휠 ±1 / Ctrl+휠 ±0.1, 변경 즉시 장치 반영.
 - 치수·색상의 근거는 [`GUI/design/`](GUI/design/) 의 HTML 목업이다.
   **요약 스펙만 보고 구현하면 구조가 틀어진다 — 반드시 목업을 렌더링해서 볼 것.**
@@ -149,15 +151,19 @@ claude mcp add --transport http pdpower http://localhost:5115
 
 | 도구 | 동작 |
 |---|---|
-| `get_status` | 연결·출력·CV/CC/OC·실측 V/A/W·입력(PD)·활성 프리셋 |
+| `get_status` | 연결·출력·CV/CC/OC·실측 V/A/W·누적 Wh·입력(PD)·활성 프리셋 |
 | `get_settings` | 프리셋 M0–M4, OCP, 밝기, PD 전압 — **장치에서 되읽어 노브 변경도 반영** |
 | `get_history_stats` | Trend 구간의 V/A/W min/avg/max |
+| `get_history_samples` | Trend 구간의 시계열 샘플 (균등 데시메이션, 최대 2000점) — 파형 분석용 |
 | `set_output` / `set_setpoint` | 출력 on/off, 전압/전류 (한쪽만 지정 가능) |
 | `select_preset` / `set_pd_voltage` | **출력 중 거부** (GUI 와 같은 규칙) |
 | `set_ocp` / `set_brightness` / `save_config` | Setup 항목과 동일 |
+| `reset_device` | 장치 재부팅(0x40) — **출력 중 거부**, 자동 재접속과 짝 (§10) |
 
 제어 요청은 UI 스레드로 마샬링해 **GUI 버튼과 같은 코드 경로**를 타고(화면·UNSAVED 동기),
-모든 AI 명령은 Log 에 `[MCP]` 로 남는다. 도구 10종 실기기 검증 완료 (2026-08-03).
+모든 AI 명령은 Log 에 `[MCP]` 로 남는다. Setup 의 **AI 읽기 전용** 체크를 켜면 제어 도구
+전부가 거부된다. 서버 on/off 와 읽기 전용 상태는 저장되어 재시작 시 복원된다.
+도구 12종 실기기 검증 완료 (2026-08-04).
 
 SDK 2.0 주의: ① nullable 파라미터도 **기본값 `= null` 이 있어야** 스키마에서 선택 인자가 된다
 ② 도구 예외는 `McpException` 이어야 클라이언트가 메시지를 본다 ③ `Microsoft.AspNetCore.App`
@@ -179,8 +185,15 @@ WeactPD_PowerV1/
 │  ├─ PdPower.Mcp/                ← MCP 도구 10종 + localhost:5115 Kestrel 호스트
 │  └─ PdPower.App/                ← WPF GUI (Theme.xaml 템플릿, TrendChart,
 │                                    MainViewModel + MainViewModel.Mcp.cs)
-└─ tests/PdPower.Core.Tests/      ← xUnit 42개
+└─ tests/PdPower.Core.Tests/      ← xUnit 63개
 ```
+
+창 위치 저장은 WPF DIP 가 아니라 **Win32 좌표**로 다룬다 — 시스템 DPI 기준으로 자체
+일관되어 배율이 다른 모니터 사이에서도 같은 자리로 돌아온다.
+
+> PerMonitorV2 전환을 시도했다가 되돌렸다: 96 DPI 모니터에서 창이 물리적으로 확 작아져
+> 대형 숫자가 잘리고 그래프가 눌리는 부작용이 실사용을 깨뜨렸다. 다시 시도하려면
+> 창 기본 크기·최소 크기·서체 크기를 모니터 배율별로 함께 재설계해야 한다.
 
 ### 버전 · 릴리스
 
@@ -225,16 +238,17 @@ dotnet run --project src/PdPower.App
 
 ## 6. 로드맵
 
-완료: 프로토콜 라이브러리(+테스트 42), CLI, 목업 충실 GUI(백그라운드 폴링·Trend 계측·Setup·
-자동 재접속), MCP 서버, 아이콘, 버전/릴리스 자동화.
+완료: 프로토콜 라이브러리(+테스트 63), CLI, 목업 충실 GUI(백그라운드 폴링·Trend 계측·Setup·
+자동 재접속 실검증·미니 모드), MCP 서버(12종 + 읽기 전용), 아이콘,
+버전/릴리스 자동화, 앱 설정 저장(`%AppData%\PdPowerTool\settings.json` — 마지막 포트,
+MCP on/읽기전용, 측정 주기, 상태 배수, Trend 범위, 창 위치/크기(물리 px), 미니 위치/모드).
 
 남은 것:
 
-- [ ] Setup: 오프셋 보정, 방전(읽기 명령 없음), 재부팅/공장초기화(`0xC7` 교정값 백업 먼저)
+- [ ] Setup: 오프셋 보정, 방전(읽기 명령 없음), 공장 초기화(`0xC7` 교정값 백업 먼저)
+      — 재부팅은 MCP `reset_device` 로 제공됨
 - [ ] SYSTEM_FACTORY_DATA(0x47) 캘리브레이션 읽기/쓰기
-- [ ] 미연결 시 CV 배지 표시 문제, 레일 접힘 모드, 프리셋 인라인 편집
-- [ ] 앱 설정 저장 확대 — 마지막 COM 포트는 저장됨(`%AppData%\PdPowerTool\settings.json`),
-      측정 주기 등은 아직
+- [ ] 레일 접힘 모드, 프리셋 인라인 편집
 - [ ] 트리거 버스트 캡처 (상시 10 ms 폴링의 CPU 29 % 를 피하면서 트립 파형 잡기)
 - [ ] 전력(W) 시리즈, 설치본 패키징
 
@@ -282,8 +296,9 @@ Trend 히스토리는 링 버퍼 14,400점, **저장 간격 = 창 길이 / 14,40
 휘발성 값이 플래시 값으로 돌아가 있기 때문. 대기 중 상태 칩은 `RECONNECT`, Trend 히스토리는
 유지되며 `Disconnect` 로 취소한다.
 
-**미검증**: 실제 단절→복구는 아직 확인 전. 출력 끄고 USB 재삽입하거나 `SYSTEM_RESET`(0x40)
-전송으로 확인할 수 있다.
+**실검증 완료 (2026-08-04)**: MCP `reset_device`(0x40) 로 장치를 재부팅시켜 CDC 포트
+소멸→복귀를 재현 — 상태 칩이 `RECONNECT` 로 바뀌었다가 같은 시리얼로 자동 재접속하는
+전체 경로를 확인했다.
 
 ## 11. OCP 실측 (12 V, 약 21 Ω 부하, `test-ocp 12.0 0.2`)
 
